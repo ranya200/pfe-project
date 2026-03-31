@@ -1,0 +1,122 @@
+# ══════════════════════════════════════════════════════════
+# PYTHON / DJANGO — Backend
+# ══════════════════════════════════════════════════════════
+
+# Environnement virtuel
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Base de données locale
+backend/db.sqlite3
+
+# Fichiers de log (générés par le système de logging ISO 27001)
+backend/logs/
+
+# Médias uploadés (fichiers RCT, FRO, FRP)
+backend/media/
+
+# Migrations (garder les fichiers de migration mais ignorer le cache)
+# backend/*/migrations/*.py  ← NE PAS ignorer, les migrations sont importantes
+
+# Variables d'environnement
+backend/.env
+backend/.env.local
+backend/.env.production
+.env
+.env.*
+
+# Django
+*.log
+local_settings.py
+
+# Collecte des fichiers statiques
+backend/staticfiles/
+backend/static_collected/
+
+# ══════════════════════════════════════════════════════════
+# NODE.JS / REACT — Frontend
+# ══════════════════════════════════════════════════════════
+
+# Dépendances
+frontend/node_modules/
+node_modules/
+
+# Build de production
+frontend/dist/
+frontend/build/
+
+# Cache Vite
+frontend/.vite/
+frontend/node_modules/.vite/
+
+# Variables d'environnement frontend
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Logs npm/yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ══════════════════════════════════════════════════════════
+# ÉDITEURS & IDE
+# ══════════════════════════════════════════════════════════
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ══════════════════════════════════════════════════════════
+# SYSTÈME D'EXPLOITATION
+# ══════════════════════════════════════════════════════════
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+# ══════════════════════════════════════════════════════════
+# SÉCURITÉ — NE JAMAIS COMMITTER
+# ══════════════════════════════════════════════════════════
+
+# Clés secrètes et certificats
+*.pem
+*.key
+*.cert
+*.p12
+secrets.json
+secret_key.txt
+
