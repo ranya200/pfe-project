@@ -2,7 +2,12 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
 // ✅ Route protégée par connexion (+ rôle optionnel)
-export default function PrivateRoute({ children, requiredRole = null, excludedRole = null }) {
+export default function PrivateRoute({
+    children,
+    requiredRole  = null,   // string  → rôle exact requis
+    allowedRoles  = null,   // array   → liste de rôles autorisés
+    excludedRole  = null,   // string  → rôle interdit
+}) {
     const { user, loading } = useAuth()
 
     // Attendre que le contexte charge (évite le flash de redirection)
@@ -13,6 +18,11 @@ export default function PrivateRoute({ children, requiredRole = null, excludedRo
 
     // Rôle insuffisant → dashboard
     if (requiredRole && user.role !== requiredRole) {
+        return <Navigate to="/" replace />
+    }
+
+    // Rôle non dans la liste autorisée → dashboard
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
         return <Navigate to="/" replace />
     }
 

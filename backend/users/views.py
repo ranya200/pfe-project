@@ -7,6 +7,7 @@ from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from knox.models import AuthToken
 from .models import CustomUser
 from audit.utils import log_action
+from knox.views import LogoutView as KnoxLogoutView
 
 # ── Helper : extraction de l'IP ───────────────────────────────────────────
 def get_client_ip(request):
@@ -241,3 +242,18 @@ class UsersViewSet(viewsets.ViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except CustomUser.DoesNotExist:
             return Response({"error": "Utilisateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
+    
+class LogoutViewSet(KnoxLogoutView):
+    """Logout Knox + audit log."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        log_action(
+            action='LOGOUT',
+            user=request.user,
+            model_name='CustomUser',
+            object_id=request.user.pk,
+            object_repr=request.user.email,
+            request=request,
+        )
+        return super().post(request, *args, **kwargs)

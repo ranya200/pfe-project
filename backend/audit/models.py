@@ -29,6 +29,15 @@ class AuditLog(models.Model):
         ('RCT_CREATE',    'RCT créé'),
         ('RCT_UPDATE',    'RCT mis à jour'),
         ('RCT_FINISH',    'RCT terminé'),
+        # Gestion des Risques
+        ('RISK_CREATE',      'Risque créé'),
+        ('RISK_UPDATE',      'Risque modifié'),
+        ('RISK_DELETE',      'Risque supprimé'),
+        ('RISK_EVAL',        'Évaluation risque mise à jour'),
+        ('ACTION_CREATE',    'Plan d\'action créé'),
+        ('ACTION_UPDATE',    'Plan d\'action mis à jour'),
+        ('RESIDUAL_CREATE',  'Risque résiduel créé'),
+        ('RESIDUAL_UPDATE',  'Risque résiduel mis à jour'),
         # Sécurité
         ('ACCESS_DENIED', 'Accès refusé'),
         ('OTHER',         'Autre'),

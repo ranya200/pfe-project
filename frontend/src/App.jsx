@@ -15,6 +15,11 @@ import RCTPage         from './components/RCTPage.jsx'
 import FRPFormPage     from './components/FRPForm.jsx'
 import FROFormPage     from './components/FROForm.jsx'
 import AuditDashboard  from './components/AuditDashboard.jsx'
+import RiskMap from './modules/risks/pages/RiskMap.jsx'
+import RiskDashboard from './modules/risks/pages/RiskDashboard.jsx'
+import ActionPlanTracker from './modules/risks/pages/ActionPlanTracker.jsx'
+import RiskDetailPage from './modules/risks/pages/RiskDetailPage.jsx'
+import RiskGuidePage from './modules/risks/pages/RiskGuidePage.jsx'
 
 function AppContent() {
     const location = useLocation()
@@ -68,6 +73,32 @@ function AppContent() {
             }/>
             <Route path="/projects/:id/rct/fro" element={
                 <PrivateRoute><Navbar content={<FROFormPage />} /></PrivateRoute>
+            }/>
+            {/* ── Gestion des Risques → admin, resp_qualite, chef_projet seulement ── */}
+            <Route path="/projects/:id/risks" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<RiskMap />} />
+                </PrivateRoute>
+            }/>
+            <Route path="/projects/:id/risks/dashboard" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<RiskDashboard />} />
+                </PrivateRoute>
+            }/>
+            <Route path="/projects/:id/risks/action-plans" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<ActionPlanTracker />} />
+                </PrivateRoute>
+            }/>
+            <Route path="/projects/:id/risks/guide" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<RiskGuidePage />} />
+                </PrivateRoute>
+            }/>
+            <Route path="/projects/:projectId/risks/:riskId" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<RiskDetailPage />} />
+                </PrivateRoute>
             }/>
             {/* ✅ /users → admin seulement */}
             <Route path="/users" element={

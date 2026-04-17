@@ -27,6 +27,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import SaveIcon from '@mui/icons-material/Save'
 import ArticleIcon from '@mui/icons-material/Article'
 import DeleteIcon from '@mui/icons-material/Delete'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 
 const PHASE_COLORS = {
     IDLE: 'default', Offre: 'warning',
@@ -109,6 +110,9 @@ const ProjectDetail = () => {
 
     // Seul l'admin peut modifier les métadonnées du projet
     const canEditProject = user?.role === 'admin'
+
+    // admin, resp_qualite, chef_projet peuvent accéder à la gestion des risques
+    const canAccessRisks = ['admin', 'resp_qualite', 'chef_projet'].includes(user?.role)
 
     // chef_projet et resp_qualite membres du projet peuvent accéder au RCT
     const canAccessRCT = (proj) => {
@@ -358,6 +362,13 @@ const ProjectDetail = () => {
                             Réponse à l'appel d'offre
                         </Button>
                     )}
+                    {canAccessRisks && (
+                        <Button variant="outlined" startIcon={<WarningAmberIcon />}
+                            onClick={() => navigate(`/projects/${id}/risks`)}
+                            sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563EB', color: '#2563EB' }}>
+                            Gestion des risques
+                        </Button>
+                    )}
                     {/* Bouton Modifier : admin uniquement */}
                     {canEditProject && !LOCKED_PHASES.includes(project.phase) && (
                         <Button variant="contained" startIcon={<EditIcon />} onClick={openEditMode}
@@ -387,9 +398,6 @@ const ProjectDetail = () => {
                     <Box>
                         <Typography sx={{ fontWeight: 700, color: '#e65100', fontSize: '0.95rem' }}>
                             Projet verrouillé — phase « {project.phase} »
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.82rem', color: '#bf360c' }}>
-                            Ce projet ne peut plus être modifié. Les données et les formulaires RCT sont en lecture seule.
                         </Typography>
                     </Box>
                 </Box>

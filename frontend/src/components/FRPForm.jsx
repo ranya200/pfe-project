@@ -9,10 +9,14 @@ import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import Slider from '@mui/material/Slider'
 import Divider from '@mui/material/Divider'
+import Chip from '@mui/material/Chip'
+import Tooltip from '@mui/material/Tooltip'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SaveIcon from '@mui/icons-material/Save'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 
 const POIDS_REVUE = [5, 4, 5, 3, 3, 2]
 const POIDS_FAIS  = [5, 5, 4, 4, 3, 2, 2]
@@ -51,6 +55,9 @@ const getScoreColor = (val, max) => {
     if (pct < 80) return '#66bb6a'
     return '#1976d2'
 }
+
+/** Génère un uid stable pour chaque besoin ponctuel */
+const genUid = () => `bp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 
 const QuestionRow = ({ num, question, scoreKey, commentKey, maxScore, form, setForm, isEven, disabled }) => {
     const val   = Number(form[scoreKey] || 0)
@@ -143,6 +150,7 @@ const FRPFormPage = () => {
     const [saved, setSaved]         = useState(false)
     const [isLocked, setIsLocked]   = useState(false)
     const [isTermine, setIsTermine] = useState(false)
+    const [postEditMode, setPostEditMode] = useState(false)
 
     useEffect(() => {
         const load = async () => {
@@ -153,7 +161,12 @@ const FRPFormPage = () => {
                     AxiosInstance.get(`projects/${id}/rct/frp/`),
                 ])
                 setIsLocked(LOCKED_PHASES.includes(projRes.data.phase))
-                if (rctRes.status !== 204) setIsTermine(rctRes.data.status === 'termine')
+                if (rctRes.status !== 204) {
+                    setIsTermine(rctRes.data.status === 'termine')
+                    setPostEditMode(!!rctRes.data.post_edit_mode)
+                } else {
+                    setPostEditMode(false)
+                }
                 setForm(frpRes.data)
                 setBesoins(frpRes.data.besoins_ponctuels || [])
             } catch (err) {
@@ -180,25 +193,46 @@ const FRPFormPage = () => {
     const scorePct   = maxTotal > 0 ? Math.round((scoreTotal / maxTotal) * 100) : 0
     const legend     = getLegend(scorePct)
 
+    // ── Besoins ponctuels ─────────────────────────────────────────────────
+
     const addBesoin = () => setBesoins(prev => [
-        ...prev, { description: '', date: '', comprehension: '', competences: '', maitrise: '', decision: 'Go', actions: '' }
+        ...prev, {
+            uid: genUid(),
+            description: '', date: '', comprehension: '', competences: '',
+            maitrise: '', decision: 'Go', actions: '',
+            // risk_id et risk_code seront remplis par le backend après la première sauvegarde
+        }
     ])
-    const updateBesoin = (idx, field, val) => setBesoins(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b))
+
+    const updateBesoin = (idx, field, val) =>
+        setBesoins(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b))
+
     const removeBesoin = (idx) => setBesoins(prev => prev.filter((_, i) => i !== idx))
+
+    // ── Sauvegarde ────────────────────────────────────────────────────────
 
     const handleSave = async () => {
         setSaving(true)
         try {
-            await AxiosInstance.patch(`projects/${id}/rct/frp/`, { ...form, besoins_ponctuels: besoins })
+            const res = await AxiosInstance.patch(
+                `projects/${id}/rct/frp/`,
+                { ...form, besoins_ponctuels: besoins }
+            )
+            // Le backend renvoie les besoins enrichis avec risk_id / risk_code
+            setForm(res.data)
+            setBesoins(res.data.besoins_ponctuels || [])
             setSaved(true)
             setTimeout(() => setSaved(false), 2500)
-        } catch (err) { console.error(err) }
-        finally { setSaving(false) }
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setSaving(false)
+        }
     }
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>
 
-    const isReadOnly = isLocked || isTermine
+    const isReadOnly = isLocked && !(isTermine && postEditMode)
 
     return (
         <Box sx={{ p: 3, maxWidth: 1080, mx: 'auto' }}>
@@ -216,13 +250,9 @@ const FRPFormPage = () => {
                 )}
             </Box>
 
-            {/* Bandeau verrouillé (phase projet) */}
+            {/* Bandeau verrouillé */}
             {isLocked && !isTermine && (
-                <Box sx={{
-                    display: 'flex', alignItems: 'center', gap: 1.5,
-                    p: 1.5, mb: 2, borderRadius: '10px',
-                    bgcolor: '#fff3e0', border: '1px solid #ff9800',
-                }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 2, borderRadius: '10px', bgcolor: '#fff3e0', border: '1px solid #ff9800' }}>
                     <Typography sx={{ fontSize: '1.1rem' }}>🔒</Typography>
                     <Typography sx={{ fontWeight: 700, color: '#e65100', fontSize: '0.9rem' }}>
                         Formulaire FRP verrouillé — ce projet est en lecture seule.
@@ -231,15 +261,19 @@ const FRPFormPage = () => {
             )}
 
             {/* Bandeau RCT terminé */}
-            {isTermine && (
-                <Box sx={{
-                    display: 'flex', alignItems: 'center', gap: 1.5,
-                    p: 1.5, mb: 2, borderRadius: '10px',
-                    bgcolor: '#e3f2fd', border: '1px solid #1976d2',
-                }}>
+            {isTermine && !postEditMode && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 2, borderRadius: '10px', bgcolor: '#e3f2fd', border: '1px solid #1976d2' }}>
                     <Typography sx={{ fontSize: '1.1rem' }}>ℹ️</Typography>
                     <Typography sx={{ fontWeight: 700, color: '#1565c0', fontSize: '0.9rem' }}>
                         Formulaire FRP — RCT terminé, consultation uniquement.
+                    </Typography>
+                </Box>
+            )}
+            {isTermine && postEditMode && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 2, borderRadius: '10px', bgcolor: '#fff3e0', border: '1px solid #ff9800' }}>
+                    <Typography sx={{ fontSize: '1.1rem' }}>✏️</Typography>
+                    <Typography sx={{ fontWeight: 700, color: '#e65100', fontSize: '0.9rem' }}>
+                        Mode correction RCT — vous pouvez modifier ce formulaire.
                     </Typography>
                 </Box>
             )}
@@ -326,7 +360,12 @@ const FRPFormPage = () => {
             {/* Section 4 — Besoins Ponctuels */}
             <Box sx={{ mb: 3, border: '1px solid #1565c0', borderRadius: '12px', overflow: 'hidden' }}>
                 <Box sx={{ bgcolor: '#1565c0', px: 2.5, py: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography sx={{ fontWeight: 700, color: '#fff', fontSize: '1rem' }}>Besoins Ponctuels</Typography>
+                    <Box>
+                        <Typography sx={{ fontWeight: 700, color: '#fff', fontSize: '1rem' }}>Besoins Ponctuels</Typography>
+                        <Typography sx={{ color: '#bbdefb', fontSize: '0.75rem', mt: 0.2 }}>
+                            Chaque besoin ajouté génère automatiquement un risque dans le registre des risques
+                        </Typography>
+                    </Box>
                     {!isReadOnly && (
                         <Button size="small" startIcon={<AddIcon />} onClick={addBesoin} variant="outlined"
                             sx={{ color: '#fff', borderColor: '#fff', textTransform: 'none', fontSize: '0.8rem' }}>
@@ -334,30 +373,89 @@ const FRPFormPage = () => {
                         </Button>
                     )}
                 </Box>
-                <ColHeaders template="36px 2fr 110px 100px 100px 100px 90px 1.5fr 36px"
-                    cols={['N°', 'Description Besoin', 'Date', 'Compréhension', 'Compétences', 'Maîtrise', 'Décision', 'Risques/Actions', '']} />
+
+                {/* En-têtes colonnes */}
+                <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '36px 2fr 110px 100px 100px 100px 90px 1.5fr 36px',
+                    gap: 1, px: 1.5, py: 1, bgcolor: '#1976d2',
+                }}>
+                    {['N°', 'Description Besoin', 'Date', 'Compréhension', 'Compétences', 'Maîtrise', 'Décision', 'Risques/Actions', ''].map((c, i) => (
+                        <Typography key={i} sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff' }}>{c}</Typography>
+                    ))}
+                </Box>
+
                 {besoins.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography sx={{ color: '#bbb', fontStyle: 'italic' }}>Aucun besoin ponctuel. Cliquez sur "Ajouter un besoin".</Typography>
+                        <Typography sx={{ color: '#bbb', fontStyle: 'italic' }}>
+                            Aucun besoin ponctuel. Cliquez sur "Ajouter un besoin".
+                        </Typography>
                     </Box>
                 ) : besoins.map((b, idx) => (
-                    <Box key={idx} sx={{
-                        display: 'grid', gridTemplateColumns: '36px 2fr 110px 100px 100px 100px 90px 1.5fr 36px',
-                        gap: 1, px: 1.5, py: 1.2, alignItems: 'center',
-                        bgcolor: idx % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f0f0f0',
+                    <Box key={b.uid || idx} sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '36px 2fr 110px 100px 100px 100px 90px 1.5fr 36px',
+                        gap: 1, px: 1.5, py: 1.2, alignItems: 'start',
+                        bgcolor: idx % 2 === 0 ? '#fff' : '#fafafa',
+                        borderBottom: '1px solid #f0f0f0',
                     }}>
-                        <Typography sx={{ fontWeight: 700, color: '#1976d2', fontSize: '0.85rem', textAlign: 'center' }}>{idx + 1}</Typography>
-                        <TextField size="small" placeholder="Description du besoin..." value={b.description}
-                            onChange={e => updateBesoin(idx, 'description', e.target.value)}
-                            disabled={isReadOnly}
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }} />
+                        {/* N° */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1, gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 700, color: '#1976d2', fontSize: '0.85rem' }}>{idx + 1}</Typography>
+                            {/* Icône risque si besoin non encore sauvegardé */}
+                            {b.uid && !b.risk_id && (
+                                <Tooltip title="Sauvegardez pour créer le risque associé">
+                                    <WarningAmberIcon sx={{ fontSize: '0.9rem', color: '#ff9800' }} />
+                                </Tooltip>
+                            )}
+                        </Box>
+
+                        {/* Description + badge risque */}
+                        <Box>
+                            <TextField size="small" placeholder="Description du besoin..." value={b.description}
+                                onChange={e => updateBesoin(idx, 'description', e.target.value)}
+                                disabled={isReadOnly} fullWidth
+                                sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }} />
+                            {/* Badge risque lié — affiché après la première sauvegarde */}
+                            {b.risk_code && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.6 }}>
+                                    <WarningAmberIcon sx={{ fontSize: '0.75rem', color: '#f57f17' }} />
+                                    <Typography sx={{ fontSize: '0.68rem', color: '#888' }}>Risque lié :</Typography>
+                                    <Chip
+                                        label={b.risk_code}
+                                        size="small"
+                                        icon={<OpenInNewIcon style={{ fontSize: '0.65rem' }} />}
+                                        onClick={() => navigate(`/projects/${id}/risks`)}
+                                        sx={{
+                                            fontSize: '0.65rem', height: 18, cursor: 'pointer',
+                                            bgcolor: '#e3f2fd', color: '#1565c0',
+                                            border: '1px solid #90caf9',
+                                            '& .MuiChip-icon': { color: '#1565c0', ml: '4px' },
+                                            '&:hover': { bgcolor: '#bbdefb' },
+                                        }}
+                                    />
+                                </Box>
+                            )}
+                            {/* Indication "non encore sauvegardé" */}
+                            {b.uid && !b.risk_id && (
+                                <Typography sx={{ fontSize: '0.65rem', color: '#bbb', mt: 0.4, fontStyle: 'italic' }}>
+                                    Risque créé à la prochaine sauvegarde
+                                </Typography>
+                            )}
+                        </Box>
+
+                        {/* Date */}
                         <TextField size="small" type="date" value={b.date}
                             onChange={e => updateBesoin(idx, 'date', e.target.value)}
                             disabled={isReadOnly}
                             sx={{ '& .MuiInputBase-root': { fontSize: '0.78rem' } }} />
+
+                        {/* Compréhension / Compétences / Maîtrise */}
                         {['comprehension', 'competences', 'maitrise'].map(field => (
                             <OuiNonAutre key={field} value={b[field]} onChange={val => updateBesoin(idx, field, val)} disabled={isReadOnly} />
                         ))}
+
+                        {/* Décision Go/NoGo */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.4 }}>
                             {[{ val: 'Go', color: '#4caf50' }, { val: 'NoGo', color: '#f44336' }].map(({ val, color }) => (
                                 <Button key={val} size="small" disabled={isReadOnly}
@@ -368,18 +466,39 @@ const FRPFormPage = () => {
                                 </Button>
                             ))}
                         </Box>
+
+                        {/* Risques / Actions */}
                         <TextField size="small" placeholder="Risques/Actions..." value={b.actions}
                             onChange={e => updateBesoin(idx, 'actions', e.target.value)} multiline maxRows={3}
                             disabled={isReadOnly}
                             sx={{ '& .MuiInputBase-root': { fontSize: '0.78rem' } }} />
-                        {!isReadOnly && (
-                            <IconButton size="small" color="error" onClick={() => removeBesoin(idx)}>
-                                <DeleteIcon fontSize="small" />
-                            </IconButton>
-                        )}
-                        {isReadOnly && <Box />}
+
+                        {/* Supprimer */}
+                        {!isReadOnly ? (
+                            <Tooltip title={b.risk_id ? `Supprime aussi le risque ${b.risk_code}` : 'Supprimer ce besoin'}>
+                                <IconButton size="small" color="error" onClick={() => removeBesoin(idx)}>
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        ) : <Box />}
                     </Box>
                 ))}
+
+                {/* Info globale sur les risques liés */}
+                {besoins.some(b => b.risk_id) && (
+                    <Box sx={{ px: 2, py: 1.5, bgcolor: '#f3f8ff', borderTop: '1px solid #e3f2fd', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <WarningAmberIcon sx={{ fontSize: '0.9rem', color: '#1565c0' }} />
+                        <Typography sx={{ fontSize: '0.78rem', color: '#1565c0' }}>
+                            {besoins.filter(b => b.risk_id).length} risque(s) généré(s) depuis les besoins ponctuels —{' '}
+                            <span
+                                style={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+                                onClick={() => navigate(`/projects/${id}/risks`)}
+                            >
+                                voir le registre des risques
+                            </span>
+                        </Typography>
+                    </Box>
+                )}
             </Box>
 
             <Divider sx={{ mb: 2 }} />
@@ -398,5 +517,3 @@ const FRPFormPage = () => {
 }
 
 export default FRPFormPage
-
-

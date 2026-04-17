@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AxiosInstance from './AxiosInstance'
 import Box from '@mui/material/Box'
@@ -22,34 +22,38 @@ import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
+import InputAdornment from '@mui/material/InputAdornment'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import SearchIcon from '@mui/icons-material/Search'
+import FilterListIcon from '@mui/icons-material/FilterList'
+import ClearIcon from '@mui/icons-material/Clear'
 
 const ROLE_COLORS = {
-    admin:          'error',
-    chef_projet:    'primary',
-    resp_qualite:   'success',
-    developpeur:    'info',
-    tech_lead:      'info',
-    ingenieur:      'info',
-    validateur:     'warning',
-    charge_affaires:'warning',
-    consultant:     'default',
-    stagiaire:      'default',
+    admin:           'error',
+    chef_projet:     'primary',
+    resp_qualite:    'success',
+    developpeur:     'info',
+    tech_lead:       'info',
+    ingenieur:       'info',
+    validateur:      'warning',
+    charge_affaires: 'warning',
+    consultant:      'default',
+    stagiaire:       'default',
 }
 
 const ROLE_LABELS = {
-    admin:          'Administrateur',
-    chef_projet:    'Chef de Projet',
-    resp_qualite:   'Resp. Qualité',
-    developpeur:    'Développeur',
-    tech_lead:      'Tech Lead',
-    ingenieur:      'Ingénieur',
-    validateur:     'Validateur',
-    charge_affaires:"Chargé d'Affaires",
-    consultant:     'Consultant',
-    stagiaire:      'Stagiaire',
+    admin:           'Administrateur',
+    chef_projet:     'Chef de Projet',
+    resp_qualite:    'Resp. Qualité',
+    developpeur:     'Développeur',
+    tech_lead:       'Tech Lead',
+    ingenieur:       'Ingénieur',
+    validateur:      'Validateur',
+    charge_affaires: "Chargé d'Affaires",
+    consultant:      'Consultant',
+    stagiaire:       'Stagiaire',
 }
 
 const DEPT_LABELS = {
@@ -88,15 +92,18 @@ const ROLE_CHOICES = [
     { value: 'stagiaire',       label: 'Stagiaire' },
 ]
 
+const EMPTY_FILTERS = { search: '', role: '', department: '', statut: '' }
+
 const Users = () => {
     const navigate = useNavigate()
     const [users, setUsers]               = useState([])
     const [loading, setLoading]           = useState(true)
     const [deleteTarget, setDeleteTarget] = useState(null)
-    const [editTarget, setEditTarget]     = useState(null)   // ✅ user en cours d'édition
-    const [editForm, setEditForm]         = useState({})     // ✅ données du formulaire édition
+    const [editTarget, setEditTarget]     = useState(null)
+    const [editForm, setEditForm]         = useState({})
     const [editErrors, setEditErrors]     = useState({})
     const [editLoading, setEditLoading]   = useState(false)
+    const [filters, setFilters]           = useState(EMPTY_FILTERS)
 
     const fetchUsers = async () => {
         setLoading(true)
@@ -111,6 +118,30 @@ const Users = () => {
     }
 
     useEffect(() => { fetchUsers() }, [])
+
+    // ── Filtrage ──────────────────────────────────────────────────────────
+    const handleFilter = (field) => (e) =>
+        setFilters(prev => ({ ...prev, [field]: e.target.value }))
+
+    const handleReset = () => setFilters(EMPTY_FILTERS)
+
+    const hasActiveFilters = Object.values(filters).some(v => v !== '')
+
+    const filtered = useMemo(() => {
+        return users.filter(u => {
+            const q = filters.search.toLowerCase()
+            const fullName = `${u.first_name} ${u.last_name}`.toLowerCase()
+            const matchSearch = !q ||
+                fullName.includes(q) ||
+                u.email?.toLowerCase().includes(q)
+            const matchRole   = !filters.role       || u.role       === filters.role
+            const matchDept   = !filters.department || u.department === filters.department
+            const matchStatut = !filters.statut     ||
+                (filters.statut === 'actif'   &&  u.is_active) ||
+                (filters.statut === 'inactif' && !u.is_active)
+            return matchSearch && matchRole && matchDept && matchStatut
+        })
+    }, [users, filters])
 
     // ── Supprimer ─────────────────────────────────────────────────────────
     const handleDelete = async () => {
@@ -145,13 +176,10 @@ const Users = () => {
         setEditLoading(true)
         try {
             const res = await AxiosInstance.patch(`users/${editTarget.id}/`, editForm)
-            // Mettre à jour la liste localement
             setUsers(prev => prev.map(u => u.id === editTarget.id ? res.data : u))
             setEditTarget(null)
         } catch (err) {
-            if (err && typeof err === 'object') {
-                setEditErrors(err)
-            }
+            if (err && typeof err === 'object') setEditErrors(err)
         } finally {
             setEditLoading(false)
         }
@@ -165,12 +193,12 @@ const Users = () => {
     return (
         <Box sx={{ p: 3 }}>
 
-            {/* ── Header ── */}
+            {/* ── Header ────────────────────────────────────────────── */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h5" sx={{ fontWeight: 700 }}>Liste des Utilisateurs</Typography>
                     <Typography sx={{ fontSize: '0.88rem', color: '#888', mt: 0.5 }}>
-                        {users.length} utilisateur(s) enregistré(s)
+                        {filtered.length} / {users.length} utilisateur(s) affiché(s)
                     </Typography>
                 </Box>
                 <Button variant="contained" startIcon={<PersonAddIcon />}
@@ -180,14 +208,90 @@ const Users = () => {
                 </Button>
             </Box>
 
-            {/* ── Tableau ── */}
+            {/* ── Barre de filtres ──────────────────────────────────── */}
+            <Box sx={{
+                display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center',
+                p: 2, mb: 3, bgcolor: '#f8fafc',
+                border: '1px solid #e3eaf3', borderRadius: '12px',
+            }}>
+                <FilterListIcon sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
+
+                {/* Recherche libre */}
+                <TextField size="small" placeholder="Nom, prénom ou email..."
+                    value={filters.search} onChange={handleFilter('search')}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: '1rem', color: '#aaa' }} />
+                            </InputAdornment>
+                        ),
+                    }}
+                    sx={{ minWidth: 220 }} />
+
+                {/* Rôle */}
+                <TextField select size="small" label="Rôle"
+                    value={filters.role} onChange={handleFilter('role')}
+                    sx={{ minWidth: 170 }}>
+                    <MenuItem value="">Tous les rôles</MenuItem>
+                    {ROLE_CHOICES.map(r => (
+                        <MenuItem key={r.value} value={r.value}>
+                            <Chip label={r.label}
+                                color={ROLE_COLORS[r.value] || 'default'}
+                                size="small" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                        </MenuItem>
+                    ))}
+                </TextField>
+
+                {/* Département */}
+                <TextField select size="small" label="Département"
+                    value={filters.department} onChange={handleFilter('department')}
+                    sx={{ minWidth: 160 }}>
+                    <MenuItem value="">Tous les depts</MenuItem>
+                    {DEPARTMENT_CHOICES.map(d => (
+                        <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                    ))}
+                </TextField>
+
+                {/* Statut */}
+                <TextField select size="small" label="Statut"
+                    value={filters.statut} onChange={handleFilter('statut')}
+                    sx={{ minWidth: 130 }}>
+                    <MenuItem value="">Tous</MenuItem>
+                    <MenuItem value="actif">
+                        <Chip label="Actif" color="success" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+                    </MenuItem>
+                    <MenuItem value="inactif">
+                        <Chip label="Inactif" color="default" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+                    </MenuItem>
+                </TextField>
+
+                {/* Reset */}
+                {hasActiveFilters && (
+                    <Button size="small" startIcon={<ClearIcon />} onClick={handleReset}
+                        sx={{ textTransform: 'none', color: '#e53935' }}>
+                        Réinitialiser
+                    </Button>
+                )}
+            </Box>
+
+            {/* ── Tableau ───────────────────────────────────────────── */}
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
                     <CircularProgress />
                 </Box>
-            ) : users.length === 0 ? (
+            ) : filtered.length === 0 ? (
                 <Box sx={{ textAlign: 'center', mt: 8, color: '#aaa' }}>
-                    <Typography>Aucun utilisateur trouvé.</Typography>
+                    <Typography>
+                        {hasActiveFilters
+                            ? 'Aucun utilisateur ne correspond à ces filtres.'
+                            : 'Aucun utilisateur trouvé.'}
+                    </Typography>
+                    {hasActiveFilters && (
+                        <Button size="small" onClick={handleReset}
+                            sx={{ textTransform: 'none', mt: 1 }}>
+                            Effacer les filtres
+                        </Button>
+                    )}
                 </Box>
             ) : (
                 <TableContainer component={Paper} elevation={0}
@@ -205,7 +309,7 @@ const Users = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {users.map((user) => (
+                            {filtered.map((user) => (
                                 <TableRow key={user.id} hover>
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -234,18 +338,14 @@ const Users = () => {
                                             color={user.is_active ? 'success' : 'default'}
                                             size="small" variant="outlined" />
                                     </TableCell>
-
-                                    {/* ✅ Actions : Modifier + Supprimer */}
                                     <TableCell align="center">
                                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
                                             <IconButton size="small" color="primary"
-                                                onClick={() => handleEditOpen(user)}
-                                                title="Modifier">
+                                                onClick={() => handleEditOpen(user)} title="Modifier">
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
                                             <IconButton size="small" color="error"
-                                                onClick={() => setDeleteTarget(user)}
-                                                title="Supprimer">
+                                                onClick={() => setDeleteTarget(user)} title="Supprimer">
                                                 <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         </Box>
@@ -257,7 +357,7 @@ const Users = () => {
                 </TableContainer>
             )}
 
-            {/* ── Dialog Supprimer ── */}
+            {/* ── Dialog Supprimer ──────────────────────────────────── */}
             <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
                 <DialogTitle sx={{ fontWeight: 700 }}>Confirmer la suppression</DialogTitle>
                 <DialogContent>
@@ -275,7 +375,7 @@ const Users = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* ── Dialog Modifier ── */}
+            {/* ── Dialog Modifier ───────────────────────────────────── */}
             <Dialog open={Boolean(editTarget)} onClose={() => setEditTarget(null)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ fontWeight: 700 }}>
                     Modifier — {editTarget?.first_name} {editTarget?.last_name}
@@ -299,7 +399,6 @@ const Users = () => {
                                 helperText={editErrors.last_name?.[0] || ''} />
                         </Box>
                     </Box>
-
                     <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                         <Box sx={{ flex: 1 }}>
                             <Typography sx={{ fontSize: '0.82rem', color: '#555', mb: 0.5 }}>Titre</Typography>
@@ -319,7 +418,6 @@ const Users = () => {
                                 helperText={editErrors.phone_number?.[0] || ''} />
                         </Box>
                     </Box>
-
                     <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                         <Box sx={{ flex: 1 }}>
                             <Typography sx={{ fontSize: '0.82rem', color: '#555', mb: 0.5 }}>Département</Typography>
@@ -342,7 +440,6 @@ const Users = () => {
                             </TextField>
                         </Box>
                     </Box>
-
                     <Box sx={{ mt: 2 }}>
                         <Typography sx={{ fontSize: '0.82rem', color: '#555', mb: 0.5 }}>Email</Typography>
                         <TextField fullWidth size="small"

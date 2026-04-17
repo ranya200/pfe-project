@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import AxiosInstance from './AxiosInstance'
@@ -11,20 +11,44 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardActions from '@mui/material/CardActions'
 import Grid from '@mui/material/Grid'
+import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
+import InputAdornment from '@mui/material/InputAdornment'
 import AddIcon from '@mui/icons-material/Add'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import SearchIcon from '@mui/icons-material/Search'
+import FilterListIcon from '@mui/icons-material/FilterList'
+import ClearIcon from '@mui/icons-material/Clear'
 
 const PHASE_COLORS = {
     IDLE: 'default', Offre: 'warning',
-    Kickoff: 'info', Realisation: 'primary', Cloture: 'success',
+    Kickoff: 'info', Realisation: 'primary',
+    Cloture: 'success', Archive: 'error',
 }
 
+const PHASES = ['IDLE', 'Offre', 'Kickoff', 'Realisation', 'Cloture', 'Archive']
+
+const DEPARTMENTS = [
+    { value: 'MEDIA',     label: 'MEDIA' },
+    { value: 'SPACE',     label: 'SPACE' },
+    { value: 'BE',        label: 'BE' },
+    { value: 'MONETIQUE', label: 'MONETIQUE' },
+    { value: 'SI',        label: 'SI' },
+    { value: 'TELECOM',   label: 'TELECOM' },
+    { value: 'RH',        label: 'RH' },
+    { value: 'QUALITE',   label: 'QUALITE' },
+    { value: 'ADMIN',     label: 'ADMIN' },
+]
+
+const EMPTY_FILTERS = { search: '', phase: '', type_projet: '', departement: '' }
+
 const Projects = () => {
-    const navigate  = useNavigate()
-    const { user }  = useAuth()
+    const navigate       = useNavigate()
+    const { user }       = useAuth()
     const [projects, setProjects] = useState([])
     const [loading, setLoading]   = useState(true)
+    const [filters, setFilters]   = useState(EMPTY_FILTERS)
 
     useEffect(() => {
         AxiosInstance.get('projects/')
@@ -33,17 +57,36 @@ const Projects = () => {
             .finally(() => setLoading(false))
     }, [])
 
+    const handleFilter = (field) => (e) =>
+        setFilters(prev => ({ ...prev, [field]: e.target.value }))
+
+    const handleReset = () => setFilters(EMPTY_FILTERS)
+
+    const hasActiveFilters = Object.values(filters).some(v => v !== '')
+
+    const filtered = useMemo(() => {
+        return projects.filter(p => {
+            const q = filters.search.toLowerCase()
+            const matchSearch = !q ||
+                p.client?.toLowerCase().includes(q) ||
+                p.ref_projet?.toLowerCase().includes(q)
+            const matchPhase  = !filters.phase       || p.phase       === filters.phase
+            const matchType   = !filters.type_projet || p.type_projet === filters.type_projet
+            const matchDept   = !filters.departement || p.departement === filters.departement
+            return matchSearch && matchPhase && matchType && matchDept
+        })
+    }, [projects, filters])
+
     return (
         <Box sx={{ p: 3 }}>
-            {/* Header */}
+            {/* ── Header ───────────────────────────────────────────── */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
                     <Typography variant="h5" sx={{ fontWeight: 700 }}>Liste des Projets</Typography>
                     <Typography sx={{ fontSize: '0.88rem', color: '#888', mt: 0.5 }}>
-                        {projects.length} projet(s) enregistré(s)
+                        {filtered.length} / {projects.length} projet(s) affiché(s)
                     </Typography>
                 </Box>
-                {/* Bouton visible uniquement pour l'admin */}
                 {user?.role === 'admin' && (
                     <Button variant="contained" startIcon={<AddIcon />}
                         onClick={() => navigate('/projects/new')}
@@ -53,18 +96,90 @@ const Projects = () => {
                 )}
             </Box>
 
+            {/* ── Barre de filtres ─────────────────────────────────── */}
+            <Box sx={{
+                display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center',
+                p: 2, mb: 3, bgcolor: '#f8fafc',
+                border: '1px solid #e3eaf3', borderRadius: '12px',
+            }}>
+                <FilterListIcon sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
+
+                {/* Recherche libre */}
+                <TextField size="small" placeholder="Client ou référence..."
+                    value={filters.search} onChange={handleFilter('search')}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: '1rem', color: '#aaa' }} />
+                            </InputAdornment>
+                        ),
+                    }}
+                    sx={{ minWidth: 200 }} />
+
+                {/* Phase */}
+                <TextField select size="small" label="Phase"
+                    value={filters.phase} onChange={handleFilter('phase')}
+                    sx={{ minWidth: 140 }}>
+                    <MenuItem value="">Toutes les phases</MenuItem>
+                    {PHASES.map(p => (
+                        <MenuItem key={p} value={p}>
+                            <Chip label={p} color={PHASE_COLORS[p] || 'default'}
+                                size="small" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                        </MenuItem>
+                    ))}
+                </TextField>
+
+                {/* Type */}
+                <TextField select size="small" label="Type"
+                    value={filters.type_projet} onChange={handleFilter('type_projet')}
+                    sx={{ minWidth: 160 }}>
+                    <MenuItem value="">Tous les types</MenuItem>
+                    <MenuItem value="forfait">Forfait</MenuItem>
+                    <MenuItem value="assistance">Assistance Technique</MenuItem>
+                </TextField>
+
+                {/* Département */}
+                <TextField select size="small" label="Département"
+                    value={filters.departement} onChange={handleFilter('departement')}
+                    sx={{ minWidth: 150 }}>
+                    <MenuItem value="">Tous les depts</MenuItem>
+                    {DEPARTMENTS.map(d => (
+                        <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                    ))}
+                </TextField>
+
+                {/* Reset */}
+                {hasActiveFilters && (
+                    <Button size="small" startIcon={<ClearIcon />} onClick={handleReset}
+                        sx={{ textTransform: 'none', color: '#e53935' }}>
+                        Réinitialiser
+                    </Button>
+                )}
+            </Box>
+
+            {/* ── Contenu ───────────────────────────────────────────── */}
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
                     <CircularProgress />
                 </Box>
-            ) : projects.length === 0 ? (
+            ) : filtered.length === 0 ? (
                 <Box sx={{ textAlign: 'center', mt: 10, color: '#bbb' }}>
                     <FolderOpenIcon sx={{ fontSize: 70, mb: 2 }} />
-                    <Typography sx={{ fontSize: '1.1rem' }}>Aucun projet pour le moment.</Typography>
+                    <Typography sx={{ fontSize: '1.1rem' }}>
+                        {hasActiveFilters
+                            ? 'Aucun projet ne correspond à ces filtres.'
+                            : 'Aucun projet pour le moment.'}
+                    </Typography>
+                    {hasActiveFilters && (
+                        <Button size="small" onClick={handleReset}
+                            sx={{ textTransform: 'none', mt: 1 }}>
+                            Effacer les filtres
+                        </Button>
+                    )}
                 </Box>
             ) : (
                 <Grid container spacing={3}>
-                    {projects.map((project) => (
+                    {filtered.map((project) => (
                         <Grid item xs={12} sm={6} md={4} key={project.id}>
                             <Card elevation={0} sx={{
                                 border: '1px solid #e0e0e0', borderRadius: '14px',

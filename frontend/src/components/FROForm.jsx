@@ -144,6 +144,7 @@ const FROFormPage = () => {
     const [saved, setSaved]         = useState(false)
     const [isLocked, setIsLocked]   = useState(false)
     const [isTermine, setIsTermine] = useState(false)
+    const [postEditMode, setPostEditMode] = useState(false)
 
     useEffect(() => {
         const load = async () => {
@@ -154,7 +155,12 @@ const FROFormPage = () => {
                     AxiosInstance.get(`projects/${id}/rct/fro/`),
                 ])
                 setIsLocked(LOCKED_PHASES.includes(projRes.data.phase))
-                if (rctRes.status !== 204) setIsTermine(rctRes.data.status === 'termine')
+                if (rctRes.status !== 204) {
+                    setIsTermine(rctRes.data.status === 'termine')
+                    setPostEditMode(!!rctRes.data.post_edit_mode)
+                } else {
+                    setPostEditMode(false)
+                }
                 setForm(froRes.data)
             } catch (err) {
                 console.error(err)
@@ -192,7 +198,7 @@ const FROFormPage = () => {
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>
 
-    const isReadOnly = isLocked || isTermine
+    const isReadOnly = isLocked && !(isTermine && postEditMode)
 
     return (
         <Box sx={{ p: 3, maxWidth: 1080, mx: 'auto' }}>
@@ -224,8 +230,7 @@ const FROFormPage = () => {
                 </Box>
             )}
 
-            {/* Bandeau RCT terminé */}
-            {isTermine && (
+            {isTermine && !postEditMode && (
                 <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
                     p: 1.5, mb: 2, borderRadius: '10px',
@@ -234,6 +239,18 @@ const FROFormPage = () => {
                     <Typography sx={{ fontSize: '1.1rem' }}>ℹ️</Typography>
                     <Typography sx={{ fontWeight: 700, color: '#1565c0', fontSize: '0.9rem' }}>
                         Formulaire FRO — RCT terminé, consultation uniquement.
+                    </Typography>
+                </Box>
+            )}
+            {isTermine && postEditMode && (
+                <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    p: 1.5, mb: 2, borderRadius: '10px',
+                    bgcolor: '#fff3e0', border: '1px solid #ff9800',
+                }}>
+                    <Typography sx={{ fontSize: '1.1rem' }}>✏️</Typography>
+                    <Typography sx={{ fontWeight: 700, color: '#e65100', fontSize: '0.9rem' }}>
+                        Mode correction RCT — vous pouvez modifier ce formulaire.
                     </Typography>
                 </Box>
             )}
@@ -320,21 +337,20 @@ const FROFormPage = () => {
                         onChange={e => setForm(prev => ({ ...prev, estimation: e.target.value }))}
                         multiline rows={2} disabled={isReadOnly} />
                     <Box>
-                        <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', mb: 0.8 }}>T0 possible ?</Typography>
-                        <Box sx={{ display: 'flex', gap: 1.5 }}>
-                            {['Oui', 'Non', 'À définir'].map(opt => {
-                                const clr = opt === 'Oui' ? '#4caf50' : opt === 'Non' ? '#f44336' : '#ff9800'
-                                const active = form.t0_possible === opt
-                                return (
-                                    <Button key={opt} size="small" disabled={isReadOnly}
-                                        variant={active ? 'contained' : 'outlined'}
-                                        onClick={() => setForm(prev => ({ ...prev, t0_possible: prev.t0_possible === opt ? '' : opt }))}
-                                        sx={{ textTransform: 'none', fontWeight: 700, ...(active ? { bgcolor: clr, '&:hover': { bgcolor: clr } } : { borderColor: clr, color: clr }) }}>
-                                        {opt}
-                                    </Button>
-                                )
-                            })}
-                        </Box>
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', mb: 0.8 }}>
+                            📅 T0 estimé — Date approximative de démarrage
+                        </Typography>
+                        <TextField
+                            type="date"
+                            size="small"
+                            disabled={isReadOnly}
+                            value={form.t0_possible || ''}
+                            onChange={e => setForm(prev => ({ ...prev, t0_possible: e.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                            sx={{ width: 220 }}
+                            helperText="Date approximative à laquelle le projet pourrait démarrer"
+                        />
                     </Box>
                     <Box>
                         <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', mb: 0.8 }}>Décision finale</Typography>

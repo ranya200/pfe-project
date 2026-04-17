@@ -1,26 +1,16 @@
-
-
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ─── Sécurité ───────────────────────────────────────────────────────
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-6p-13if6m*(m^azos1-cvfhh+wukh^$l1ht@%3$fy)@u=k+v*&')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = ['*']
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6p-13if6m*(m^azos1-cvfhh+wukh^$l1ht@%3$fy)@u=k+v*&'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
-# Application definition
-
+# ─── Apps ───────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -34,36 +24,38 @@ INSTALLED_APPS = [
     'projects',
     'rct',
     'knox',
-    'audit',           # ← ISO 9001/27001 : Journal d'audit
+    'audit',
+    'risk_management',
+    'django_filters',
 ]
 
+# ─── Middleware ──────────────────────────────────────────────────────
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # ← ajouté ici
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'audit.middleware.AuditMiddleware',   # ← capture IP + User-Agent
+    'audit.middleware.AuditMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+# ─── CORS ────────────────────────────────────────────────────────────
+CORS_ALLOW_ALL_ORIGINS = True   # OK pour PFE, à restreindre en prod finale
 
+# ─── Auth ────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'users.CustomUser'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-AUTHENTICATION_BACKENDS = ['users.auth_backend.EmailAuthBackend']   
+AUTHENTICATION_BACKENDS = ['users.auth_backend.EmailAuthBackend']
 ROOT_URLCONF = 'backend.urls'
 
+# ─── Templates (React build) ─────────────────────────────────────────
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, '..', 'frontend', 'dist')],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -76,110 +68,89 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',)
-    ,
+
+# ─── Base de données ─────────────────────────────────────────────────
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get(
+            'DATABASE_URL',
+            'postgresql://postgres:postgres@localhost:5432/PFE-Projectdb'
+        ),
+        conn_max_age=600
+    )
 }
 
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'PFE-Projectdb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+# ─── REST Framework ──────────────────────────────────────────────────
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend'
+    ]
 }
 
 REST_KNOX = {
     'AUTH_TOKEN_CHARACTER_LENGTH': 64,
-    'TOKEN_TTL':                   timedelta(hours=8),    # expire après 8h (ISO 27001)
-    'AUTO_REFRESH':                True,
-    'TOKEN_LIMIT_PER_USER':        5,                     # max 5 sessions simultanées
+    'TOKEN_TTL': timedelta(hours=8),
+    'AUTO_REFRESH': True,
+    'TOKEN_LIMIT_PER_USER': 5,
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+# ─── Fichiers statiques ──────────────────────────────────────────────
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = []
 
+# Vérifie si le build React existe avant de l'ajouter
+REACT_BUILD_DIR = os.path.join(BASE_DIR, '..', 'frontend', 'dist', 'assets')
+if os.path.exists(REACT_BUILD_DIR):
+    STATICFILES_DIRS.append(REACT_BUILD_DIR)
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ─── Media ───────────────────────────────────────────────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ─── Auth validators ─────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
+# ─── I18n ────────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
-STATIC_URL = 'static/'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ══════════════════════════════════════════════════════════════════════
-# LOGGING — ISO 9001 / ISO 27001 : Journalisation structurée
-# ══════════════════════════════════════════════════════════════════════
+# ─── Logging ─────────────────────────────────────────────────────────
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-
     'formatters': {
-        # Format lisible pour les fichiers de log
         'verbose': {
             'format': '[{asctime}] [{levelname}] [{name}] {message}',
             'style': '{',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
-        # Format simple pour la console (développement)
-        'simple': {
-            'format': '[{levelname}] {message}',
-            'style': '{',
-        },
+        'simple': {'format': '[{levelname}] {message}', 'style': '{'},
     },
-
     'handlers': {
-        # Console (toujours actif en dev)
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        # Fichier journal d'audit (actions utilisateurs)
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
         'audit_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': str(LOGS_DIR / 'audit.log'),
-            'maxBytes': 10 * 1024 * 1024,   # 10 Mo max par fichier
-            'backupCount': 5,                 # 5 fichiers de rotation
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 5,
             'formatter': 'verbose',
             'encoding': 'utf-8',
         },
-        # Fichier erreurs Django
         'error_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': str(LOGS_DIR / 'errors.log'),
@@ -189,7 +160,6 @@ LOGGING = {
             'level': 'ERROR',
             'encoding': 'utf-8',
         },
-        # Fichier journal Django général
         'django_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': str(LOGS_DIR / 'django.log'),
@@ -199,25 +169,9 @@ LOGGING = {
             'encoding': 'utf-8',
         },
     },
-
     'loggers': {
-        # Logger principal Django
-        'django': {
-            'handlers': ['console', 'django_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Logger pour les erreurs de requêtes
-        'django.request': {
-            'handlers': ['error_file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        # Logger dédié à l'audit (utilisé dans audit/utils.py)
-        'audit': {
-            'handlers': ['audit_file', 'console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
+        'django': {'handlers': ['console', 'django_file'], 'level': 'INFO', 'propagate': False},
+        'django.request': {'handlers': ['error_file', 'console'], 'level': 'ERROR', 'propagate': False},
+        'audit': {'handlers': ['audit_file', 'console'], 'level': 'INFO', 'propagate': False},
     },
 }

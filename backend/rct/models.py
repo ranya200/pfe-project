@@ -15,6 +15,8 @@ class RCT(models.Model):
     project      = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='rct')
     current_step = models.PositiveIntegerField(default=1)
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='en_cours')
+    # Permet de rouvrir le RCT terminé pour correction (phase Kickoff/Archive).
+    post_edit_mode = models.BooleanField(default=False)
     created_by   = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,
                        null=True, related_name='rcts_crees')
     created_at   = models.DateTimeField(auto_now_add=True)
@@ -29,6 +31,8 @@ class Step1(models.Model):
     rct                   = models.OneToOneField(RCT, on_delete=models.CASCADE, related_name='step1')
     cahier_charges        = models.FileField(upload_to='rct/step1/', null=True, blank=True)
     formulaire_interactif = models.FileField(upload_to='rct/step1/', null=True, blank=True)
+    # Clés : cahier_charges, formulaire_interactif → liste de chemins stockage (dernier = plus récent).
+    file_versions         = models.JSONField(default=dict, blank=True)
     completed             = models.BooleanField(default=False)
     updated_at            = models.DateTimeField(auto_now=True)
 
@@ -41,10 +45,12 @@ class Step2(models.Model):
     rct                  = models.OneToOneField(RCT, on_delete=models.CASCADE, related_name='step2')
     formulaire_qr_final  = models.FileField(upload_to='rct/step2/', null=True, blank=True)
     exigences_legales    = models.TextField(blank=True, default='')
+    exigences_legales_fichier = models.FileField(upload_to='rct/step2/', null=True, blank=True)
     offre_tech_financier = models.FileField(upload_to='rct/step2/', null=True, blank=True)
     fiche_revue_offre    = models.FileField(upload_to='rct/step2/', null=True, blank=True)
     planning             = models.FileField(upload_to='rct/step2/', null=True, blank=True)
     cr_reunions          = models.FileField(upload_to='rct/step2/', null=True, blank=True)
+    file_versions        = models.JSONField(default=dict, blank=True)
     completed            = models.BooleanField(default=False)
     updated_at           = models.DateTimeField(auto_now=True)
 
@@ -64,6 +70,7 @@ class Step3(models.Model):
     derniere_version_offre = models.FileField(upload_to='rct/step3/', null=True, blank=True)
     planning               = models.FileField(upload_to='rct/step3/', null=True, blank=True)
     retour_client          = models.FileField(upload_to='rct/step3/', null=True, blank=True)
+    file_versions          = models.JSONField(default=dict, blank=True)
     decision               = models.CharField(max_length=20, choices=DECISION_CHOICES, default='en_attente')
     completed              = models.BooleanField(default=False)
     updated_at             = models.DateTimeField(auto_now=True)
@@ -165,7 +172,7 @@ class FROForm(models.Model):
     # ── Décision ──────────────────────────────────────────────────────────
     faisabilite_pct   = models.FloatField(default=0)
     estimation        = models.TextField(blank=True, default='')
-    t0_possible       = models.CharField(max_length=10, blank=True, default='')
+    t0_possible       = models.CharField(max_length=20, blank=True, default='')
     decision_fro      = models.CharField(max_length=20, blank=True, default='')
     commentaire_final = models.TextField(blank=True, default='')
 
