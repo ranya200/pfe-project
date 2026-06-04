@@ -219,6 +219,26 @@ class UsersViewSet(viewsets.ViewSet):
         except CustomUser.DoesNotExist:
             return Response({"error": "Utilisateur introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=False, methods=['get'], url_path='autocomplete')
+    def autocomplete(self, request):
+        """
+        Endpoint accessible à tous les utilisateurs connectés.
+        Paramètres GET :
+          - q    : filtre sur prénom ou nom (insensible à la casse)
+          - role : filtre par rôle exact
+        """
+        from django.db.models import Q
+        q    = request.query_params.get('q', '').strip()
+        role = request.query_params.get('role', '').strip()
+
+        qs = CustomUser.objects.filter(is_active=True)
+        if q:
+            qs = qs.filter(Q(first_name__icontains=q) | Q(last_name__icontains=q))
+        if role:
+            qs = qs.filter(role=role)
+        qs = qs.order_by('first_name', 'last_name')[:30]
+        return Response(UserSerializer(qs, many=True).data)
+
     def partial_update(self, request, pk=None):
         if request.user.role != 'admin':
             return Response({"error": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)

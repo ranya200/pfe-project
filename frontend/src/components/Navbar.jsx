@@ -21,6 +21,7 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd'
 import LogoutIcon from '@mui/icons-material/Logout'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import SecurityIcon from '@mui/icons-material/Security'
+import BusinessIcon from '@mui/icons-material/Business'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
@@ -51,6 +52,7 @@ export default function Navbar({ content }) {
             ? [{ to: '/personal-infos', label: 'Informations', icon: <AccountCircleIcon /> }]
             : []),
         { to: '/projects',  label: 'Liste des Projets', icon: <FormatListBulletedAddIcon /> },
+        { to: '/clients',   label: 'Clients',           icon: <BusinessIcon /> },
         // Utilisateurs + Audit : visibles uniquement pour l'admin
         ...(user?.role === 'admin'
             ? [

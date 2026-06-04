@@ -20,6 +20,9 @@ import RiskDashboard from './modules/risks/pages/RiskDashboard.jsx'
 import ActionPlanTracker from './modules/risks/pages/ActionPlanTracker.jsx'
 import RiskDetailPage from './modules/risks/pages/RiskDetailPage.jsx'
 import RiskGuidePage from './modules/risks/pages/RiskGuidePage.jsx'
+import ATListPage from './features/assistanceTechnique/pages/ATListPage.jsx'
+import AssistanceTechniquePage from './features/assistanceTechnique/pages/AssistanceTechniquePage.jsx'
+import ClientsPage from './components/ClientsPage.jsx'
 
 function AppContent() {
     const location = useLocation()
@@ -99,6 +102,21 @@ function AppContent() {
                 <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
                     <Navbar content={<RiskDetailPage />} />
                 </PrivateRoute>
+            }/>
+            {/* ── Assistance Technique ── */}
+            <Route path="/projects/:projectId/assistance-technique" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<ATListPage />} />
+                </PrivateRoute>
+            }/>
+            <Route path="/projects/:projectId/assistance-technique/:id" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<AssistanceTechniquePage />} />
+                </PrivateRoute>
+            }/>
+            {/* ── Clients ── */}
+            <Route path="/clients" element={
+                <PrivateRoute><Navbar content={<ClientsPage />} /></PrivateRoute>
             }/>
             {/* ✅ /users → admin seulement */}
             <Route path="/users" element={

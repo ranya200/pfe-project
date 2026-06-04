@@ -28,6 +28,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import ArticleIcon from '@mui/icons-material/Article'
 import DeleteIcon from '@mui/icons-material/Delete'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import EngineeringIcon from '@mui/icons-material/Engineering'
 
 const PHASE_COLORS = {
     IDLE: 'default', Offre: 'warning',
@@ -113,6 +114,11 @@ const ProjectDetail = () => {
 
     // admin, resp_qualite, chef_projet peuvent accéder à la gestion des risques
     const canAccessRisks = ['admin', 'resp_qualite', 'chef_projet'].includes(user?.role)
+
+    // admin, resp_qualite, chef_projet peuvent accéder à l'Assistance Technique
+    // seulement si le projet est en phase Kickoff, Réalisation ou Clôture (offre acceptée)
+    const canAccessAT = ['admin', 'resp_qualite', 'chef_projet'].includes(user?.role)
+    const AT_PHASES = ['Kickoff', 'Realisation', 'Cloture']
 
     // chef_projet et resp_qualite membres du projet peuvent accéder au RCT
     const canAccessRCT = (proj) => {
@@ -367,6 +373,15 @@ const ProjectDetail = () => {
                             onClick={() => navigate(`/projects/${id}/risks`)}
                             sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563EB', color: '#2563EB' }}>
                             Gestion des risques
+                        </Button>
+                    )}
+                    {/* Bouton AT : visible quand le projet est en phase Kickoff/Réalisation/Clôture */}
+                    {canAccessAT && AT_PHASES.includes(project.phase) && (
+                        <Button variant="contained" startIcon={<EngineeringIcon />}
+                            onClick={() => navigate(`/projects/${id}/assistance-technique`)}
+                            sx={{ textTransform: 'none', fontWeight: 600, bgcolor: '#047857',
+                                '&:hover': { bgcolor: '#065f46' } }}>
+                            Assistance Technique
                         </Button>
                     )}
                     {/* Bouton Modifier : admin uniquement */}

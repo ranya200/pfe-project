@@ -68,7 +68,7 @@ const SectionTitle = ({ children }) => (
 const ProjectForm = () => {
     const navigate = useNavigate()
     const [form, setForm] = useState({
-        client: '', type_projet: '', departement: '',
+        nom_projet: '', client: '', type_projet: '', departement: '',
         langages: [], os_outils: [], metier_generique: [],
         metier_specifique: [], devops: [], management: [],
         membres: [],
@@ -127,6 +127,13 @@ const ProjectForm = () => {
 
             {/* ── Infos générales ── */}
             <SectionTitle>Informations générales</SectionTitle>
+
+            <Box sx={{ mb: 2 }}>
+                <Typography sx={{ fontSize: '0.85rem', color: '#555', mb: 0.5 }}>Nom du projet*</Typography>
+                <TextField fullWidth size="small" placeholder="Nom du projet"
+                    value={form.nom_projet} onChange={handleChange('nom_projet')}
+                    error={!!errors.nom_projet} helperText={errors.nom_projet?.[0]} />
+            </Box>
 
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <Box sx={{ flex: 2 }}>

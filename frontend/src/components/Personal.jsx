@@ -13,6 +13,9 @@ const DEPT_LABELS = {
     RH: 'RH', QUALITE: 'Qualité', ADMIN: 'Admin',
 }
 
+// Phases qui indiquent qu'un projet est actif (démarré, pas encore archivé)
+const ACTIVE_PHASES = ['Kickoff', 'Realisation', 'Cloture']
+
 const Row = ({ label, children }) => (
     <Box sx={{ display: 'flex', py: 1.2, borderBottom: '1px solid #f0f0f0' }}>
         <Typography sx={{ width: 210, fontWeight: 700, fontSize: '0.88rem', color: '#222', flexShrink: 0 }}>
@@ -23,8 +26,8 @@ const Row = ({ label, children }) => (
 )
 
 const Personal = () => {
-    const { user }                    = useAuth()
-    const [projects, setProjects]     = useState([])
+    const { user }                      = useAuth()
+    const [projects, setProjects]       = useState([])
     const [projLoading, setProjLoading] = useState(true)
 
     useEffect(() => {
@@ -40,6 +43,9 @@ const Personal = () => {
     const deptLabel  = DEPT_LABELS[user.department] || user.department
     const roleLabel  = user.role === 'chef_projet' ? 'Chef de Projet' : 'Responsable Qualité'
     const regNumber  = String(user.id).padStart(4, '0')
+
+    // Projets actifs : du Kickoff jusqu'à Cloture inclus (l'user en fait partie)
+    const activeProjects = projects.filter(p => ACTIVE_PHASES.includes(p.phase))
 
     return (
         <Box sx={{ p: 4, maxWidth: 900, mx: 'auto' }}>
@@ -93,22 +99,33 @@ const Personal = () => {
                         </Typography>
                     </Row>
 
+                    {/* ── Projets en cours (Kickoff → Cloture) ── */}
                     <Row label="Projet en cours">
                         {projLoading ? (
                             <Typography sx={{ fontSize: '0.85rem', color: '#aaa' }}>Chargement...</Typography>
-                        ) : projects.filter(p => p.phase === 'Realisation').length === 0 ? (
+                        ) : activeProjects.length === 0 ? (
                             <Typography sx={{ fontSize: '0.85rem', color: '#aaa', fontStyle: 'italic' }}>
-                                Aucun projet en phase de réalisation
+                                Aucun projet en cours
                             </Typography>
                         ) : (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
-                                {projects
-                                    .filter(p => p.phase === 'Realisation')
-                                    .map(p => (
-                                        <Chip key={p.id} label={`${p.ref_projet} — ${p.client}`}
-                                            size="small" variant="outlined"
-                                            sx={{ fontSize: '0.78rem', color: '#d32f2f', borderColor: '#d32f2f' }} />
-                                    ))}
+                                {activeProjects.map(p => {
+                                    const isTermine = p.phase === 'Cloture'
+                                    return (
+                                        <Chip
+                                            key={p.id}
+                                            label={`${p.ref_projet} — ${p.client}${isTermine ? ' ✓' : ''}`}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{
+                                                fontSize: '0.78rem',
+                                                color:       isTermine ? '#2e7d32' : '#d32f2f',
+                                                borderColor: isTermine ? '#2e7d32' : '#d32f2f',
+                                                bgcolor:     isTermine ? '#f1f8f1' : 'transparent',
+                                            }}
+                                        />
+                                    )
+                                })}
                             </Box>
                         )}
                     </Row>

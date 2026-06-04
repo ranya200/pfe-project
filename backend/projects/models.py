@@ -42,6 +42,7 @@ class Project(models.Model):
     )
 
     ref_projet        = models.CharField(max_length=20, unique=True, editable=False)
+    nom_projet        = models.CharField(max_length=255, blank=True)
     client            = models.CharField(max_length=100)
     type_projet       = models.CharField(max_length=20, choices=TYPE_CHOICES)
     departement       = models.CharField(max_length=20, choices=CustomUser.DEPARTMENT_CHOICES)
