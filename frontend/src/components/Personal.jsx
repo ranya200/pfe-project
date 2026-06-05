@@ -57,7 +57,7 @@ const Personal = () => {
                 p: 3, mb: 4, bgcolor: '#fafafa',
             }}>
                 <Avatar
-                    src={user.image ? `http://localhost:8000${user.image}` : undefined}
+                    src={user.image ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${user.image}` : undefined}
                     sx={{ width: 90, height: 90, bgcolor: '#1976d2', fontSize: '2rem',
                           border: '2px solid #d0e8ff' }}
                 />

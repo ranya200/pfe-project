@@ -314,7 +314,7 @@ const Users = () => {
                                     <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                             <Avatar
-                                                src={user.image ? `http://localhost:8000${user.image}` : undefined}
+                                                src={user.image ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${user.image}` : undefined}
                                                 sx={{ width: 38, height: 38, bgcolor: '#1976d2', fontSize: '0.9rem' }}>
                                                 {!user.image && `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase()}
                                             </Avatar>

@@ -33,7 +33,7 @@ const Home = () => {
             }}>
                 <Avatar sx={{ width: 72, height: 72, bgcolor: '#1976d2', fontSize: '1.8rem' }}>
                     {user.image
-                        ? <img src={`http://localhost:8000${user.image}`} alt="profil"
+                        ? <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${user.image}`} alt="profil"
                             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                         : initials
                     }

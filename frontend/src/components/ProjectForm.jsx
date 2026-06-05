@@ -237,7 +237,7 @@ const ProjectForm = () => {
                                 '&:hover': { borderColor: '#1976d2' }
                             }}>
                                 <Avatar
-                                    src={u.image ? `http://localhost:8000${u.image}` : undefined}
+                                    src={u.image ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${u.image}` : undefined}
                                     sx={{ width: 32, height: 32, bgcolor: '#1976d2', fontSize: '0.78rem' }}>
                                     {!u.image && `${u.first_name?.[0]}${u.last_name?.[0]}`}
                                 </Avatar>

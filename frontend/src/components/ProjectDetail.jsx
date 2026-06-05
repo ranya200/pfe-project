@@ -311,7 +311,7 @@ const ProjectDetail = () => {
                                     <Checkbox size="small" checked={selected}
                                         onChange={() => toggleMembre(u.id)}
                                         onClick={e => e.stopPropagation()} />
-                                    <Avatar src={u.image ? `http://localhost:8000${u.image}` : undefined}
+                                    <Avatar src={u.image ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${u.image}` : undefined}
                                         sx={{ width: 30, height: 30, fontSize: '0.75rem', bgcolor: '#1976d2' }}>
                                         {!u.image && `${u.first_name?.[0]}${u.last_name?.[0]}`}
                                     </Avatar>
@@ -502,7 +502,7 @@ const ProjectDetail = () => {
                                 <Typography sx={{ color: '#ccc', fontSize: '0.8rem', minWidth: 22 }}>
                                     #{i + 1}
                                 </Typography>
-                                <Avatar src={m.image ? `http://localhost:8000${m.image}` : undefined}
+                                <Avatar src={m.image ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${m.image}` : undefined}
                                     sx={{ width: 38, height: 38, bgcolor: '#1976d2', fontSize: '0.82rem' }}>
                                     {!m.image && `${m.first_name?.[0]}${m.last_name?.[0]}`}
                                 </Avatar>
