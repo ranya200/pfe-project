@@ -20,6 +20,8 @@ from .serializers import (
     Step1Serializer, Step2Serializer, Step3Serializer, Step4Serializer,
     EquipementECMESerializer, ReunionSuiviSerializer, ChargeRessourceSerializer,
 )
+from notifications.services import notify_project_team
+from notifications.models import Notification
 
 
 def _ensure_steps(at):
@@ -113,9 +115,35 @@ class AssistanceTechniqueViewSet(viewsets.ModelViewSet):
         step = at.step1
         if request.method == 'GET':
             return Response(Step1Serializer(step).data)
+
+        # Même pattern "replace all" que pour actions_bilan : on capture l'état
+        # AVANT pour détecter les formations réellement nouvelles après coup.
+        old_signatures = set(
+            step.formations.values_list('formation', 'dates', 'ressources')
+        )
+
         serializer = Step1Serializer(step, data=request.data, partial=(request.method == 'PATCH'))
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        new_formations = [
+            f for f in step.formations.all()
+            if (f.formation, f.dates, f.ressources) not in old_signatures
+        ]
+        if new_formations:
+            noms = ', '.join(f.formation for f in new_formations[:3])
+            suffix = '…' if len(new_formations) > 3 else ''
+            notify_project_team(
+                at.project,
+                notification_type=Notification.NotificationType.TRAINING_SCHEDULED,
+                title="Formation(s) programmée(s)",
+                message=(
+                    f"{len(new_formations)} nouvelle(s) formation(s) programmée(s) pour l'AT "
+                    f"du projet {at.project.ref_projet} : {noms}{suffix}"
+                ),
+                link_url=f"/assistance-technique/{at.id}/step1",
+            )
+
         return Response(serializer.data)
 
     @action(detail=True, methods=['get', 'put', 'patch'], url_path='step2')
@@ -137,9 +165,44 @@ class AssistanceTechniqueViewSet(viewsets.ModelViewSet):
         step = at.step3
         if request.method == 'GET':
             return Response(Step3Serializer(step).data)
+
+        # suivi_reunions (JSONField) est la source réelle des données de réunion
+        # (la table ReunionSuivi n'est qu'une synchro parallèle qui peut être vide).
+        # On compare donc le JSON avant/après pour détecter les réunions nouvelles.
+        old_reunions = list(step.suivi_reunions or [])
+
+        def _signature(item):
+            if not isinstance(item, dict):
+                return None
+            return (
+                item.get('date_tenue') or item.get('date'),
+                item.get('type_reunion'),
+                item.get('pilote'),
+            )
+
+        old_signatures = {_signature(r) for r in old_reunions}
+
         serializer = Step3Serializer(step, data=request.data, partial=(request.method == 'PATCH'))
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        step.refresh_from_db()
+        new_reunions = [
+            r for r in (step.suivi_reunions or [])
+            if _signature(r) not in old_signatures
+        ]
+        if new_reunions:
+            for reunion in new_reunions:
+                date_str = f" le {reunion.get('date_tenue') or reunion.get('date') or ''}"
+                type_str = f" ({reunion.get('type_reunion')})" if reunion.get('type_reunion') else ""
+                notify_project_team(
+                    at.project,
+                    notification_type=Notification.NotificationType.MEETING_SCHEDULED,
+                    title="Réunion programmée",
+                    message=f"Une réunion de suivi{type_str} a été programmée{date_str} pour l'AT du projet {at.project.ref_projet}.",
+                    link_url=f"/assistance-technique/{at.id}/step3",
+                )
+
         return Response(serializer.data)
 
     @action(detail=True, methods=['get', 'put', 'patch'], url_path='step4')
@@ -149,9 +212,35 @@ class AssistanceTechniqueViewSet(viewsets.ModelViewSet):
         step = at.step4
         if request.method == 'GET':
             return Response(Step4Serializer(step).data)
+
+        # Le serializer supprime et recrée toutes les actions_bilan à chaque save
+        # (pattern "replace all") ; on capture donc l'état AVANT pour détecter
+        # ensuite les actions réellement nouvelles, et ne pas spammer à chaque
+        # simple sauvegarde du formulaire.
+        old_signatures = set(
+            step.actions_bilan.values_list('type_action', 'action', 'responsable')
+        )
+
         serializer = Step4Serializer(step, data=request.data, partial=(request.method == 'PATCH'))
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        new_actions = [
+            a for a in step.actions_bilan.all()
+            if (a.type_action, a.action, a.responsable) not in old_signatures
+        ]
+        if new_actions:
+            notify_project_team(
+                at.project,
+                notification_type=Notification.NotificationType.ACTION_ASSIGNED,
+                title="Nouvelle(s) action(s) à faire",
+                message=(
+                    f"{len(new_actions)} nouvelle(s) action(s) ajoutée(s) au bilan "
+                    f"de l'AT du projet {at.project.ref_projet}."
+                ),
+                link_url=f"/assistance-technique/{at.id}/step4",
+            )
+
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='upload_attachment',
@@ -210,7 +299,19 @@ class ReunionSuiviViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         at_id = self.request.data.get('at')
         step3 = Step3_Suivi.objects.get(at_id=at_id)
-        serializer.save(step3=step3)
+        reunion = serializer.save(step3=step3)
+
+        # ── Notification : réunion programmée ──
+        at = step3.at
+        date_str = f" le {reunion.date}" if reunion.date else ""
+        type_str = f" ({reunion.type_reunion})" if reunion.type_reunion else ""
+        notify_project_team(
+            at.project,
+            notification_type=Notification.NotificationType.MEETING_SCHEDULED,
+            title="Réunion programmée",
+            message=f"Une réunion de suivi{type_str} a été programmée{date_str} pour l'AT du projet {at.project.ref_projet}.",
+            link_url=f"/assistance-technique/{at.id}/step3",
+        )
 
 
 class ChargeRessourceViewSet(viewsets.ModelViewSet):

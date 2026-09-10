@@ -394,7 +394,7 @@ const StepTwo = ({
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                     <Button variant="outlined" size="small"
-                        onClick={() => navigate(isForfait ? `/projects/${projectId}/rct/fro` : `/projects/${projectId}/rct/frp`)}
+                        onClick={() => window.open(isForfait ? `/projects/${projectId}/rct/fro` : `/projects/${projectId}/rct/frp`, '_blank')}
                         sx={{ textTransform: 'none' }}>
                         Consulter la fiche étape 1
                     </Button>

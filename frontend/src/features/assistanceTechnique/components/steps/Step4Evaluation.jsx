@@ -292,6 +292,31 @@ function EnqueteTab({ form, onChange, at }) {
         })}
       </div>
 
+      {/* Évaluation client — document importé (optionnel) */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-gray-800 mb-2">Évaluation client</h4>
+        <p className="text-xs text-gray-500 mb-3">
+          Importer le document d'évaluation rempli par le client (enquête de satisfaction signée, retour formel…).
+        </p>
+        <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+          onChange={e => { const file = e.target.files?.[0]; if (file) onChange('document_evaluation_client', file) }}
+          className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-white file:text-blue-700 hover:file:bg-blue-50 cursor-pointer" />
+
+        {form.document_evaluation_client_url && !(form.document_evaluation_client instanceof File) && (
+          <p className="mt-2 text-xs text-blue-700 font-medium">
+            📎 Document déjà importé :{' '}
+            <a href={form.document_evaluation_client_url} target="_blank" rel="noreferrer" className="underline hover:text-blue-900">
+              Voir le document
+            </a>
+          </p>
+        )}
+        {form.document_evaluation_client instanceof File && (
+          <p className="mt-2 text-xs text-green-700 font-medium">
+            ✅ Nouveau document sélectionné : {form.document_evaluation_client.name}
+          </p>
+        )}
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -352,13 +377,8 @@ function EnqueteTab({ form, onChange, at }) {
         <div>
           <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Indice de satisfaction global</p>
           <p className="text-xs text-gray-400 mt-0.5">
-            = MOYENNE(scores) — {scores.length} / {criteres.length} critère(s) renseigné(s)
+            {scores.length} / {criteres.length} critère(s) renseigné(s)
           </p>
-          {scores.length > 0 && (
-            <p className="text-xs text-gray-400 mt-0.5">
-              ({scores.map(s => s.toFixed(1)).join(' + ')}) ÷ {scores.length} = {indice.toFixed(2)}
-            </p>
-          )}
         </div>
         <div className="text-right">
           <span className={`text-4xl font-black ${indiceColor}`}>
@@ -591,9 +611,27 @@ function BilanTab({ form, onChange, at, members = [] }) {
                     <td className="px-3 py-3 text-xs font-bold text-indigo-400 align-top">{idx + 1}</td>
                     <td className="px-3 py-3 text-sm text-gray-800 align-top leading-relaxed">{question}</td>
                     <td className="px-2 py-2 align-top">
-                      <textarea value={row.reponse || ''} onChange={e => updateCompetence(idx, e.target.value)}
-                        placeholder="Réponse…" rows={2}
-                        className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none" />
+                      {idx === 0 ? (
+                        <div>
+                          <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                            onChange={e => { const file = e.target.files?.[0]; if (file) onChange('lien_matrice_competences_file', file) }}
+                            className="block w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-white file:text-indigo-700 hover:file:bg-indigo-50 cursor-pointer" />
+                          {row.reponse && !(form.lien_matrice_competences_file instanceof File) && (
+                            <p className="mt-1.5 text-xs text-blue-700 font-medium">
+                              📎 <a href={row.reponse} target="_blank" rel="noreferrer" className="underline hover:text-blue-900">Voir la matrice importée</a>
+                            </p>
+                          )}
+                          {form.lien_matrice_competences_file instanceof File && (
+                            <p className="mt-1.5 text-xs text-green-700 font-medium">
+                              ✅ {form.lien_matrice_competences_file.name}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <textarea value={row.reponse || ''} onChange={e => updateCompetence(idx, e.target.value)}
+                          placeholder="Réponse…" rows={2}
+                          className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none" />
+                      )}
                     </td>
                   </tr>
                 )
@@ -780,6 +818,11 @@ function buildInitialForm(step4Data, at) {
 
     plan_action_file:     null,
     plan_action_file_url: scalarFields.plan_action_file_url || '',
+
+    document_evaluation_client:     null,
+    document_evaluation_client_url: scalarFields.document_evaluation_client_url || '',
+
+    lien_matrice_competences_file: null,
   }
 }
 
@@ -792,10 +835,10 @@ export default function Step4Evaluation({ at, step4Data, saving, onSave, onAdvan
   const members = Array.isArray(at?.project_membres) ? at.project_membres : []
 
   useEffect(() => {
-    if (!step4Data) return
+    if (!step4Data || isDirty) return
     setForm(buildInitialForm(step4Data, at))
     setIsDirty(false)
-  }, [step4Data?.id])
+  }, [step4Data, at, isDirty])
 
   const handleChange = useCallback((field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -879,6 +922,19 @@ export default function Step4Evaluation({ at, step4Data, saving, onSave, onAdvan
         payload.plan_action_file_url = uploadRes.url
       } else if (form.plan_action_file_url) {
         payload.plan_action_file_url = form.plan_action_file_url
+      }
+
+      if (form.document_evaluation_client instanceof File) {
+        const uploadRes = await uploadATAttachment(at.id, form.document_evaluation_client)
+        payload.document_evaluation_client_url = uploadRes.url
+      } else if (form.document_evaluation_client_url) {
+        payload.document_evaluation_client_url = form.document_evaluation_client_url
+      }
+
+      // Bilan de compétences — Q1 "Lien de la matrice des compétences" est un fichier importé
+      if (form.lien_matrice_competences_file instanceof File && payload.bilan_competences?.[0]) {
+        const uploadRes = await uploadATAttachment(at.id, form.lien_matrice_competences_file)
+        payload.bilan_competences[0].reponse = uploadRes.url
       }
 
       console.log('📤 Step4 payload:', JSON.stringify(payload, null, 2))

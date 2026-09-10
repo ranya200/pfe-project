@@ -23,6 +23,8 @@ import RiskGuidePage from './modules/risks/pages/RiskGuidePage.jsx'
 import ATListPage from './features/assistanceTechnique/pages/ATListPage.jsx'
 import AssistanceTechniquePage from './features/assistanceTechnique/pages/AssistanceTechniquePage.jsx'
 import ClientsPage from './components/ClientsPage.jsx'
+import AIAnalysisPage from './modules/ai/pages/AIAnalysisPage.jsx'
+import BilanActionsProjet from './components/BilanActionsProjet';
 
 function AppContent() {
     const location = useLocation()
@@ -103,10 +105,24 @@ function AppContent() {
                     <Navbar content={<RiskDetailPage />} />
                 </PrivateRoute>
             }/>
+            {/* ── Bilan d'actions globales → admin, resp_qualite, chef_projet seulement ── */}
+            <Route path="/projects/:id/bilan-actions" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<BilanActionsProjet />} />
+                </PrivateRoute>
+            }/>
             {/* ── Assistance Technique ── */}
             <Route path="/projects/:projectId/assistance-technique" element={
                 <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
                     <Navbar content={<ATListPage />} />
+                </PrivateRoute>
+            }/>
+            
+        
+            {/* ── Module IA ── */}
+            <Route path="/projects/:projectId/ai-analysis" element={
+                <PrivateRoute allowedRoles={['admin', 'resp_qualite', 'chef_projet']}>
+                    <Navbar content={<AIAnalysisPage />} />
                 </PrivateRoute>
             }/>
             <Route path="/projects/:projectId/assistance-technique/:id" element={

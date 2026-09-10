@@ -17,6 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
             'title', 'phone_number', 'department', 'image',
             'role', 'role_display',
             'is_active', 'date_joined',
+            'email_notifications_enabled',
         ]
         read_only_fields = ['id', 'is_active', 'date_joined', 'role_display']
 

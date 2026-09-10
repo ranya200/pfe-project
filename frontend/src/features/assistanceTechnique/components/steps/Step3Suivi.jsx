@@ -609,8 +609,9 @@ export default function Step3Suivi({ at, step3Data, step2Data, step1Data, saving
 
     // Build a key from the data to detect real changes (id + reunion count)
     const currentKey = `${step3Data?.id || 'none'}-${(step3Data?.suivi_reunions || []).length}`
-    // Only re-initialize if the backend data actually changed (new load or different content)
-    if (lastInitKey.current === currentKey && isDirty) return
+    // Only re-initialize if the backend data actually changed (new load or different content),
+    // and never clobber the user's in-progress unsaved edits.
+    if (lastInitKey.current === currentKey || isDirty) return
     lastInitKey.current = currentKey
 
     const allPlanned  = mergeAllMeetings(step1Data, step2Data)
@@ -662,6 +663,13 @@ export default function Step3Suivi({ at, step3Data, step2Data, step1Data, saving
     await onSave({ suivi_reunions: reunions })
     setIsDirty(false)
   }, [reunions, onSave])
+
+  // Save any pending changes before advancing, so clicking "Passer à l'étape
+  // suivante" never silently discards unsaved edits.
+  const handleAdvanceClick = useCallback(async () => {
+    if (isDirty) await handleSave()
+    onAdvance()
+  }, [isDirty, handleSave, onAdvance])
  
   const completedSteps = Array.from({ length: (at?.current_step || 3) - 1 }, (_, i) => i + 1)
  
@@ -720,7 +728,7 @@ export default function Step3Suivi({ at, step3Data, step2Data, step1Data, saving
               </svg> Sauvegarde…</>
             ) : '💾 Sauvegarder'}
           </button>
-          <button type="button" onClick={onAdvance}
+          <button type="button" onClick={handleAdvanceClick}
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow transition-colors">
             Passer à l'étape 4 →
           </button>

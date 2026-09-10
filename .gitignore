@@ -38,6 +38,13 @@ backend/.env.production
 *.log
 local_settings.py
 
+# Celery Beat (fichier de planification généré au runtime)
+celerybeat-schedule
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+backend/celerybeat-schedule*
+
 # Collecte des fichiers statiques
 backend/staticfiles/
 backend/static_collected/
@@ -119,4 +126,3 @@ $RECYCLE.BIN/
 *.p12
 secrets.json
 secret_key.txt
-

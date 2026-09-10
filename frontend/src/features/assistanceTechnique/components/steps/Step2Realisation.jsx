@@ -177,7 +177,7 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
   const reuns  = tbl('pq_reunions_pq',       { type_reunion: '', objectif: '', resultats: '', pilote: '', participants: '', frequence: '', date_prevue: '' })
   const phases = tbl('pq_phases',            { phase: '', entrees_client: '', sorties_telnet: '', document_url: '' })
   const mats   = tbl('pq_materiels',         { nom: '', usage: '', date_reception: '' })
-  const outs   = tbl('pq_outils',            { nom: '', version: '', usage: '', date_acquisition: '' })
+  const outs   = tbl('pq_outils',            { nom: '', version: '', usage: '', date_acquisition: '', proprietaire: '' })
   const devs   = tbl('pq_env_dev',           { nom_logiciel: '', version: '', usage: '' })
   const tsts   = tbl('pq_env_test',          { nom_logiciel: '', version: '', usage: '' })
   const incs = {
@@ -190,10 +190,19 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
     remove: (i) => onChange('pq_incidents_secu', (form.pq_incidents_secu || []).filter((_, idx) => idx !== i)),
   }
 
-  // Skills matrix rows
+  // Skills matrix rows — columns are now the actual members of the team (section 4a),
+  // not fixed generic roles. Each row stores which team members have that competence.
+  const equipeMembres = (form.pq_membres_equipe_pq || []).filter(m => (m.nom || '').trim() !== '')
   const skillRows = form.pq_competences || []
   const updateSkill = (i, k, v) => onChange('pq_competences', skillRows.map((r, idx) => idx === i ? { ...r, [k]: v } : r))
-  const addSkill    = () => onChange('pq_competences', [...skillRows, { competence: '', spm: false, pm: false, tl: false, scm_c: false, id: false, iv: false }])
+  const toggleSkillMembre = (i, nomMembre, v) => onChange('pq_competences', skillRows.map((r, idx) => {
+    if (idx !== i) return r
+    const membres = { ...(r.membres || {}) }
+    if (v) membres[nomMembre] = true
+    else delete membres[nomMembre]
+    return { ...r, membres }
+  }))
+  const addSkill    = () => onChange('pq_competences', [...skillRows, { competence: '', membres: {} }])
   const removeSkill = (i) => onChange('pq_competences', skillRows.filter((_, idx) => idx !== i))
 
   // Jalons (editable but fixed M0-M4 ids)
@@ -278,20 +287,28 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
 
       {/* 5. Compétences requises */}
       <Section title="5. Compétences requises" accent="purple">
+        {equipeMembres.length === 0 && (
+          <p className="text-xs text-amber-600 mb-2">
+            ⚠️ Ajoutez d'abord les membres de l'équipe dans la section « 4a. Membres de l'équipe projet » pour pouvoir leur assigner des compétences.
+          </p>
+        )}
         <div className="overflow-x-auto rounded border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b">Compétence</th>
-                {['SPM','PM','TL','SCM_C','ID','IV'].map(h => (
-                  <th key={h} className="px-3 py-2 text-center text-xs font-semibold text-gray-500 border-b border-l border-gray-100 w-16">{h}</th>
+                {equipeMembres.map((m, i) => (
+                  <th key={`${m.nom}-${i}`} className="px-3 py-2 text-center text-xs font-semibold text-gray-500 border-b border-l border-gray-100 w-20">
+                    <div>{m.nom}</div>
+                    {m.role && <div className="text-[10px] font-normal text-gray-400">{m.role}</div>}
+                  </th>
                 ))}
                 <th className="w-7 border-b"></th>
               </tr>
             </thead>
             <tbody>
               {skillRows.length === 0 && (
-                <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Aucune compétence — cliquez sur + Ajouter</td></tr>
+                <tr><td colSpan={equipeMembres.length + 2} className="text-center text-gray-400 py-4 text-xs">Aucune compétence — cliquez sur + Ajouter</td></tr>
               )}
               {skillRows.map((row, i) => (
                 <tr key={i} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -299,8 +316,8 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
                     <input value={row.competence || ''} onChange={e => updateSkill(i, 'competence', e.target.value)}
                       placeholder="ex: Python, React…" className={INPUT} />
                   </td>
-                  {['spm','pm','tl','scm_c','id','iv'].map(k => (
-                    <CheckCell key={k} checked={row[k]} onChange={v => updateSkill(i, k, v)} />
+                  {equipeMembres.map((m, mi) => (
+                    <CheckCell key={`${m.nom}-${mi}`} checked={row.membres?.[m.nom]} onChange={v => toggleSkillMembre(i, m.nom, v)} />
                   ))}
                   <td className="px-1 py-1.5 text-center">
                     <button type="button" onClick={() => removeSkill(i)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
@@ -331,8 +348,10 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
 
       {/* 7. Planning */}
       <Section title="7. Planning" accent="blue">
-        <textarea value={form.pq_planning || ''} onChange={e => onChange('pq_planning', e.target.value)}
-          rows={3} className={TEXTAREA} placeholder="Lien SVN / outil de planification, description du planning général…" />
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-600">Planning de la prestation :</span>
+          <FileUploadCell atId={atId} value={form.pq_planning} onChange={v => onChange('pq_planning', v)} label="📂 Importer le planning" />
+        </div>
       </Section>
 
       {/* 8. Communication */}
@@ -405,7 +424,10 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-16">Jalon</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b">Description</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-52">Référence interne</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-40">Référence interne</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-32">Statut</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-36">Date prévue</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 border-b w-36">Date réelle</th>
               </tr>
             </thead>
             <tbody>
@@ -419,6 +441,21 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
                   <td className="px-2 py-1.5">
                     <input value={row.reference_interne || ''} onChange={e => updateJalon(i, 'reference_interne', e.target.value)}
                       placeholder="Référence…" className={INPUT} />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <select value={row.statut || 'prevu'} onChange={e => updateJalon(i, 'statut', e.target.value)}
+                      className={INPUT}>
+                      <option value="prevu">Prévu</option>
+                      <option value="realise">Réalisé</option>
+                    </select>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <input type="date" value={row.date_prevue || ''} onChange={e => updateJalon(i, 'date_prevue', e.target.value)}
+                      className={INPUT} />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <input type="date" value={row.date_reelle || ''} onChange={e => updateJalon(i, 'date_reelle', e.target.value)}
+                      disabled={row.statut !== 'realise'} className={INPUT} />
                   </td>
                 </tr>
               ))}
@@ -439,14 +476,16 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
         />
       </Section>
 
-      {/* 15. Outils */}
-      <Section title="15. Outils" accent="blue">
+      {/* 15. Outils Software */}
+      <Section title="15. Outils Software" accent="blue">
         <JsonTable rows={form.pq_outils || []} emptyMsg="Aucun outil — cliquez sur + Ajouter"
           columns={[
             { key: 'nom',              label: 'Outil',            placeholder: "Nom de l'outil", width: 150 },
             { key: 'version',          label: 'Version',          placeholder: 'ex: 3.2.1',      width: 100 },
             { key: 'usage',            label: 'Usage',            placeholder: 'Usage…',         width: 180 },
             { key: 'date_acquisition', label: 'Date acquisition', type: 'date',                  width: 130 },
+            { key: 'proprietaire',     label: 'Propriétaire',     type: 'select', width: 110,
+              options: [{ value: 'telnet', label: 'Telnet' }, { value: 'client', label: 'Client' }] },
           ]}
           onAdd={outs.add} onUpdate={outs.update} onRemove={outs.remove}
         />
@@ -502,9 +541,9 @@ function PlanQualite({ form, onChange, members, deptUsers = [], atId }) {
         </Section>
       </div>
 
-      {/* 20. Événements de sécurité */}
-      <Section title="20. Gestion des événements de sécurité" accent="amber">
-        <JsonTable rows={form.pq_incidents_secu || []} emptyMsg="Aucun événement sécurité enregistré"
+      {/* 20. Incidences de sécurité */}
+      <Section title="20. Gestion des incidences sécurité" accent="amber">
+        <JsonTable rows={form.pq_incidents_secu || []} emptyMsg="Aucune incidence sécurité enregistrée"
           columns={[
             { key: 'evenement',         label: 'Événement',         placeholder: 'Titre…',            width: 130 },
             { key: 'description',       label: 'Description',       type: 'textarea',                  width: 170 },
@@ -594,8 +633,10 @@ function PlanConfiguration({ form, onChange, members, deptUsers = [], atId }) {
 
       {/* Politiques de configuration */}
       <Section title="Politiques de configuration" accent="purple">
-        <textarea value={form.pc_politiques || ''} onChange={e => onChange('pc_politiques', e.target.value)}
-          rows={4} className={TEXTAREA} placeholder="Politiques de nommage, archivage, accès…" />
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-600">Document de politique de configuration :</span>
+          <FileUploadCell atId={atId} value={form.pc_politiques} onChange={v => onChange('pc_politiques', v)} label="📂 Importer la politique de configuration" />
+        </div>
       </Section>
 
       {/* Gestion des branches — explication + Q&R */}
@@ -1117,11 +1158,11 @@ const TABS = [
 ]
 
 const DEFAULT_JALONS = [
-  { id_jalon: 'M0', description: 'Démarrage du projet (Go)', reference_interne: '' },
-  { id_jalon: 'M1', description: '',                          reference_interne: '' },
-  { id_jalon: 'M2', description: '',                          reference_interne: '' },
-  { id_jalon: 'M3', description: '',                          reference_interne: '' },
-  { id_jalon: 'M4', description: 'Clôture / Livraison finale', reference_interne: '' },
+  { id_jalon: 'M0', description: 'Démarrage du projet (Go)', reference_interne: '', statut: 'prevu', date_prevue: '', date_reelle: '' },
+  { id_jalon: 'M1', description: '',                          reference_interne: '', statut: 'prevu', date_prevue: '', date_reelle: '' },
+  { id_jalon: 'M2', description: '',                          reference_interne: '', statut: 'prevu', date_prevue: '', date_reelle: '' },
+  { id_jalon: 'M3', description: '',                          reference_interne: '', statut: 'prevu', date_prevue: '', date_reelle: '' },
+  { id_jalon: 'M4', description: 'Clôture / Livraison finale', reference_interne: '', statut: 'prevu', date_prevue: '', date_reelle: '' },
 ]
 
 const EMPTY_FORM = {
@@ -1188,7 +1229,7 @@ export default function Step2Realisation({ at, step1Data, step2Data, saving, onS
 
   // ── Initialize form from saved data + auto-fill from Step1 / project ──────
   useEffect(() => {
-    if (initialized.current) return
+    if (isDirty) return
     // Wait until step1Data has actually loaded before initializing
     if (!step1Data) return
     initialized.current = true
@@ -1245,7 +1286,7 @@ export default function Step2Realisation({ at, step1Data, step2Data, saving, onS
       // ── PQ — Compétences (from project competences) ─────────────────────────
       if ((!base.pq_competences || base.pq_competences.length === 0) && at?.project_competences?.length > 0) {
         base.pq_competences = at.project_competences.map(c => ({
-          competence: c, spm: false, pm: false, tl: false, scm_c: false, id: false, iv: false,
+          competence: c, membres: {},
         }))
       }
 
@@ -1300,7 +1341,7 @@ export default function Step2Realisation({ at, step1Data, step2Data, saving, onS
     }
 
     init()
-  }, [step2Data, step1Data, at])
+  }, [step2Data, step1Data, at, isDirty])
 
   const handleChange = useCallback((field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -1314,6 +1355,13 @@ export default function Step2Realisation({ at, step1Data, step2Data, saving, onS
     setForm(prev => ({ ...prev, pq_version_num: newVersionNum, pq_version: `${newVersionNum}.0` }))
     setIsDirty(false)
   }, [form, onSave])
+
+  // Save any pending changes before advancing, so clicking "Passer à l'étape
+  // suivante" never silently discards unsaved edits.
+  const handleAdvanceClick = useCallback(async () => {
+    if (isDirty) await handleSave()
+    onAdvance()
+  }, [isDirty, handleSave, onAdvance])
 
   const completedSteps = Array.from({ length: (at?.current_step || 2) - 1 }, (_, i) => i + 1)
 
@@ -1370,7 +1418,7 @@ export default function Step2Realisation({ at, step1Data, step2Data, saving, onS
               </svg> Sauvegarde…</>
             ) : '💾 Sauvegarder'}
           </button>
-          <button type="button" onClick={onAdvance}
+          <button type="button" onClick={handleAdvanceClick}
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow transition-colors">
             Passer à l'étape 3 →
           </button>

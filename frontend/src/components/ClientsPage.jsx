@@ -19,6 +19,66 @@ import BusinessIcon from '@mui/icons-material/Business'
 
 const EMPTY_FORM = { nom_client: '', domaine: '', email: '', telephone: '', adresse: '' }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/
+const NAME_REGEX   = /^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s'&.,-]{1,99}$/
+
+// Rejette les saisies "spam" du style "ssssss" ou "aaaaaaa" (un seul caractère répété)
+const isRepetitive = (value) => {
+    const stripped = value.replace(/\s/g, '')
+    return stripped.length > 2 && new Set(stripped.toLowerCase()).size === 1
+}
+
+function validateField(field, rawValue, form) {
+    const value = (rawValue || '').trim()
+
+    switch (field) {
+        case 'nom_client':
+            if (!value) return 'Le nom du client est obligatoire.'
+            if (value.length < 2) return 'Le nom du client doit contenir au moins 2 caractères.'
+            if (isRepetitive(value)) return 'Ce nom ne semble pas valide.'
+            if (!NAME_REGEX.test(value)) return 'Utilisez uniquement lettres, chiffres et ponctuation courante.'
+            return null
+
+        case 'domaine':
+            if (!value) return null
+            if (isRepetitive(value)) return 'Ce domaine ne semble pas valide.'
+            if (!NAME_REGEX.test(value)) return 'Utilisez uniquement lettres, chiffres et ponctuation courante.'
+            return null
+
+        case 'email':
+            if (!value) return null
+            if (!EMAIL_REGEX.test(value)) return "L'adresse email n'est pas valide."
+            if (isRepetitive(value.split('@')[0])) return "Cette adresse email ne semble pas valide."
+            return null
+
+        case 'telephone':
+            if (!value) return null
+            if (isRepetitive(value)) return 'Ce numéro ne semble pas valide.'
+            if (!/^(\+?216)?\d{8}$/.test(value.replace(/\s/g, ''))) {
+                return 'Numéro invalide : 8 chiffres (ex: 20 123 456), avec +216 en option.'
+            }
+            return null
+
+        case 'adresse':
+            if (!value) return null
+            if (value.length > 255) return "L'adresse est trop longue (255 caractères max)."
+            if (isRepetitive(value)) return 'Cette adresse ne semble pas valide.'
+            return null
+
+        default:
+            return null
+    }
+}
+
+function validateClientForm(form) {
+    const errors = {}
+    for (const field of Object.keys(form)) {
+        const message = validateField(field, form[field], form)
+        if (message) errors[field] = [message]
+    }
+    return errors
+}
+
 export default function ClientsPage() {
     const { user } = useAuth()
     const isAdmin  = user?.role === 'admin'
@@ -30,6 +90,7 @@ export default function ClientsPage() {
     const [form, setForm]         = useState(EMPTY_FORM)
     const [saving, setSaving]     = useState(false)
     const [errors, setErrors]     = useState({})
+    const [touched, setTouched]   = useState({})
 
     const fetchClients = () => {
         setLoading(true)
@@ -41,13 +102,42 @@ export default function ClientsPage() {
 
     useEffect(() => { fetchClients() }, [])
 
-    const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setOpen(true) }
-    const openEdit   = (c)  => { setEditing(c);  setForm({ nom_client: c.nom_client, domaine: c.domaine, email: c.email, telephone: c.telephone, adresse: c.adresse }); setErrors({}); setOpen(true) }
+    const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setTouched({}); setOpen(true) }
+    const openEdit   = (c)  => { setEditing(c);  setForm({ nom_client: c.nom_client, domaine: c.domaine, email: c.email, telephone: c.telephone, adresse: c.adresse }); setErrors({}); setTouched({}); setOpen(true) }
     const handleClose = ()  => { setOpen(false) }
 
-    const handleChange = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }))
+    const handleChange = (field) => (e) => {
+        const value = e.target.value
+        setForm(prev => ({ ...prev, [field]: value }))
+        if (touched[field]) {
+            const message = validateField(field, value, form)
+            setErrors(prev => ({ ...prev, [field]: message ? [message] : undefined }))
+        }
+    }
+
+    const handleBlur = (field) => () => {
+        setTouched(prev => ({ ...prev, [field]: true }))
+        const message = validateField(field, form[field], form)
+        setErrors(prev => ({ ...prev, [field]: message ? [message] : undefined }))
+    }
+
+    const handlePhoneChange = (e) => {
+        const cleaned = e.target.value.replace(/[^0-9+\s]/g, '')
+        setForm(prev => ({ ...prev, telephone: cleaned }))
+        if (touched.telephone) {
+            const message = validateField('telephone', cleaned, form)
+            setErrors(prev => ({ ...prev, telephone: message ? [message] : undefined }))
+        }
+    }
 
     const handleSave = async () => {
+        const clientErrors = validateClientForm(form)
+        setTouched({ nom_client: true, domaine: true, email: true, telephone: true, adresse: true })
+        if (Object.keys(clientErrors).length > 0) {
+            setErrors(clientErrors)
+            return
+        }
+
         setSaving(true); setErrors({})
         try {
             if (editing) {
@@ -129,15 +219,38 @@ export default function ClientsPage() {
             <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ fontWeight: 700 }}>{editing ? 'Modifier le client' : 'Nouveau client'}</DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-                    <TextField label="Nom du client *" size="small" fullWidth value={form.nom_client} onChange={handleChange('nom_client')} error={!!errors.nom_client} helperText={errors.nom_client?.[0]} />
-                    <TextField label="Domaine" size="small" fullWidth value={form.domaine} onChange={handleChange('domaine')} placeholder="ex: Telecom, Banking, Energy" />
-                    <TextField label="Email" size="small" fullWidth value={form.email} onChange={handleChange('email')} error={!!errors.email} helperText={errors.email?.[0]} />
-                    <TextField label="Téléphone" size="small" fullWidth value={form.telephone} onChange={handleChange('telephone')} />
-                    <TextField label="Adresse" size="small" fullWidth multiline rows={2} value={form.adresse} onChange={handleChange('adresse')} />
+                    <TextField
+                        label="Nom du client *" size="small" fullWidth
+                        value={form.nom_client} onChange={handleChange('nom_client')} onBlur={handleBlur('nom_client')}
+                        error={!!errors.nom_client} helperText={errors.nom_client?.[0]}
+                        inputProps={{ maxLength: 100 }} />
+                    <TextField
+                        label="Domaine" size="small" fullWidth
+                        value={form.domaine} onChange={handleChange('domaine')} onBlur={handleBlur('domaine')}
+                        error={!!errors.domaine} helperText={errors.domaine?.[0]}
+                        placeholder="ex: Telecom, Banking, Energy"
+                        inputProps={{ maxLength: 100 }} />
+                    <TextField
+                        label="Email" type="email" size="small" fullWidth
+                        value={form.email} onChange={handleChange('email')} onBlur={handleBlur('email')}
+                        error={!!errors.email} helperText={errors.email?.[0]}
+                        placeholder="exemple@domaine.com" />
+                    <TextField
+                        label="Téléphone" type="tel" size="small" fullWidth
+                        value={form.telephone} onChange={handlePhoneChange} onBlur={handleBlur('telephone')}
+                        error={!!errors.telephone} helperText={errors.telephone?.[0]}
+                        placeholder="20 123 456 ou +216 20 123 456" inputProps={{ maxLength: 17 }} />
+                    <TextField
+                        label="Adresse" size="small" fullWidth multiline rows={2}
+                        value={form.adresse} onChange={handleChange('adresse')} onBlur={handleBlur('adresse')}
+                        error={!!errors.adresse} helperText={errors.adresse?.[0]}
+                        inputProps={{ maxLength: 255 }} />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
                     <Button onClick={handleClose} sx={{ textTransform: 'none' }}>Annuler</Button>
-                    <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                    <Button variant="contained" onClick={handleSave}
+                        disabled={saving || Object.keys(validateClientForm(form)).length > 0}
+                        sx={{ textTransform: 'none', fontWeight: 600 }}>
                         {saving ? <CircularProgress size={18} color="inherit" /> : (editing ? 'Enregistrer' : 'Créer')}
                     </Button>
                 </DialogActions>
@@ -145,4 +258,3 @@ export default function ClientsPage() {
         </Box>
     )
 }
-

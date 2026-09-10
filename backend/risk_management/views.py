@@ -16,6 +16,35 @@ from .serializers import (
     ActionPlanSuiviSerializer,
     ResidualRiskSerializer,
 )
+from notifications.services import notify_project_team, notifier
+from notifications.models import Notification
+
+
+def notify_action_assigned(action_plan, old_responsible_id=None):
+    """
+    Notifie le responsable d'un plan d'action uniquement si :
+    - c'est une nouvelle assignation (pas de responsable avant), ou
+    - le responsable a changé (réassignation).
+    Évite de spammer à chaque simple mise à jour de progression/statut.
+    """
+    if not action_plan.responsible_id:
+        return
+    if action_plan.responsible_id == old_responsible_id:
+        return
+
+    risk = action_plan.risk
+    notifier(
+        recipient=action_plan.responsible,
+        title="Action à faire assignée",
+        message=(
+            f"Une action vous a été assignée pour le risque « {risk.code} — {risk.title} » "
+            f"(projet {risk.project.ref_projet}) : {(action_plan.action or '')[:150]}"
+        ),
+        notification_type=Notification.NotificationType.ACTION_ASSIGNED,
+        related_object_type='ActionPlan',
+        related_object_id=action_plan.pk,
+        link_url=f"/projects/{risk.project_id}/risks/{risk.id}",
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -50,6 +79,15 @@ class RiskViewSet(viewsets.ModelViewSet):
             new_values=serialize_model_fields(risk),
             request=self.request,
             extra={'risk_id': risk.id, 'risk_code': risk.code, 'project_id': risk.project_id},
+        )
+
+        # ── Notification : risque ajouté ──
+        notify_project_team(
+            risk.project,
+            notification_type=Notification.NotificationType.RISK_ADDED,
+            title="Nouveau risque ajouté",
+            message=f"Un nouveau risque « {risk.code} — {risk.title} » a été ajouté au projet {risk.project.ref_projet}.",
+            link_url=f"/projects/{risk.project_id}/risks/{risk.id}",
         )
 
     def perform_update(self, serializer):
@@ -161,9 +199,11 @@ class RiskViewSet(viewsets.ModelViewSet):
 
         is_create = False
         old_ap    = None
+        old_responsible_id = None
         try:
             instance   = risk.action_plan
             old_ap     = serialize_model_fields(instance)
+            old_responsible_id = instance.responsible_id
             partial    = request.method == "PATCH"
             serializer = ActionPlanSerializer(
                 instance, data=request.data, partial=partial
@@ -178,6 +218,9 @@ class RiskViewSet(viewsets.ModelViewSet):
             saved_ap = serializer.save(risk=risk)
         except Exception:
             saved_ap = serializer.save()
+
+        # ── Notification : action assignée (nouvelle ou réassignée) ──
+        notify_action_assigned(saved_ap, old_responsible_id=old_responsible_id)
 
         log_action(
             action='ACTION_CREATE' if is_create else 'ACTION_UPDATE',
@@ -448,6 +491,17 @@ class RiskViewSet(viewsets.ModelViewSet):
             )
             created.append(risk)
 
+        # ── Notification groupée : risques ajoutés en masse ──
+        if created:
+            count = len(created)
+            notify_project_team(
+                project,
+                notification_type=Notification.NotificationType.RISK_ADDED,
+                title="Nouveaux risques ajoutés",
+                message=f"{count} nouveau(x) risque(s) ont été ajoutés au projet {project.ref_projet} depuis le guide des risques.",
+                link_url=f"/projects/{project.pk}/risks",
+            )
+
         serializer = RiskSerializer(created, many=True)
         return Response(
             {"created": len(created), "risks": serializer.data},
@@ -504,6 +558,15 @@ class ActionPlanViewSet(viewsets.ModelViewSet):
         if project_id:
             qs = qs.filter(risk__project_id=project_id)
         return qs
+
+    def perform_create(self, serializer):
+        action_plan = serializer.save()
+        notify_action_assigned(action_plan, old_responsible_id=None)
+
+    def perform_update(self, serializer):
+        old_responsible_id = serializer.instance.responsible_id
+        action_plan = serializer.save()
+        notify_action_assigned(action_plan, old_responsible_id=old_responsible_id)
 
 
 # ══════════════════════════════════════════════════════════════════

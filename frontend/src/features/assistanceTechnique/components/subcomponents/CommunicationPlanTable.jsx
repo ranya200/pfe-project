@@ -80,8 +80,8 @@ function ParticipantsSelector({ participants, projectMembers, onToggle }) {
   )
 }
 
-// ── File upload cell for élément de sortie ────────────────────────────────────
-function ElementSortieCell({ value, atId, onUpdate }) {
+// ── Generic file upload cell (used for élément d'entrée and élément de sortie) ─
+function FileElementCell({ value, atId, onUpdate }) {
   const fileInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
 
@@ -130,7 +130,7 @@ function ElementSortieCell({ value, atId, onUpdate }) {
   )
 }
 
-const EMPTY_ROW = { type_reunion: '', objectif: '', frequence: '', date_prevue: '', responsable: '', participants: '', element_sortie: '' }
+const EMPTY_ROW = { type_reunion: '', objectif: '', frequence: '', date_prevue: '', responsable: '', participants: '', element_entree: '', element_sortie: '' }
 
 export default function CommunicationPlanTable({ plan = [], onChange, projectMembers = [], atId }) {
   const ensureRows = (data) => {
@@ -155,7 +155,7 @@ export default function CommunicationPlanTable({ plan = [], onChange, projectMem
       <table className="w-full text-sm">
         <thead className="bg-gray-50">
           <tr>
-            {['Type de réunion', 'Objectif', 'Fréquence', 'Date prévue', 'Responsable', 'Participants', 'Élément de sortie'].map(h => (
+            {['Type de réunion', 'Objectif', 'Fréquence', 'Date prévue', 'Responsable', 'Participants', 'Élément d\'entrée', 'Élément de sortie'].map(h => (
               <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b">{h}</th>
             ))}
           </tr>
@@ -198,7 +198,14 @@ export default function CommunicationPlanTable({ plan = [], onChange, projectMem
                   />
                 </td>
                 <td className="px-2 py-1.5 min-w-[160px]">
-                  <ElementSortieCell
+                  <FileElementCell
+                    value={row.element_entree}
+                    atId={atId}
+                    onUpdate={val => update(t.value, 'element_entree', val)}
+                  />
+                </td>
+                <td className="px-2 py-1.5 min-w-[160px]">
+                  <FileElementCell
                     value={row.element_sortie}
                     atId={atId}
                     onUpdate={val => update(t.value, 'element_sortie', val)}
@@ -212,4 +219,3 @@ export default function CommunicationPlanTable({ plan = [], onChange, projectMem
     </div>
   )
 }
-

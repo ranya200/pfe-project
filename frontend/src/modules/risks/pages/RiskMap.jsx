@@ -90,7 +90,16 @@ function RiskMapInner() {
     <div className="min-h-screen bg-[#F4F6F9] p-6">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-[#0F2744]">Cartographie des risques</h1>
+        <div className="flex items-center gap-3">
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-lg text-slate-600 hover:bg-slate-50 transition-colors"
+            onClick={() => navigate(`/projects/${id}`)}
+            title="Retour au projet"
+          >
+            ←
+          </button>
+          <h1 className="text-3xl font-bold text-[#0F2744]">Cartographie des risques</h1>
+        </div>
         <div className="flex gap-2">
           <button
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50 transition-colors"
