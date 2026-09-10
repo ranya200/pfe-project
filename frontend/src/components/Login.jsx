@@ -59,11 +59,9 @@ const Login = () => {
         <Box className="login-page">
             <Box className="login-header">
                 <Box className="login-logo">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <rect x="4" y="14" width="14" height="14" rx="2" transform="rotate(-45 4 14)" fill="#1976d2"/>
-                    </svg>
+                    <img src="/logo192.png" alt="TelTrack" style={{ width: 28, height: 28, borderRadius: 6 }} />
                     <Typography sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#222' }}>
-                        TelNet
+                        TelTrack
                     </Typography>
                 </Box>
             </Box>
@@ -141,7 +139,7 @@ const Login = () => {
             </Box>
 
             <Box className="login-footer">
-                <Typography sx={{ fontSize: '0.8rem', color: '#888' }}>TelNet © 2025</Typography>
+                <Typography sx={{ fontSize: '0.8rem', color: '#888' }}>TelTrack © 2026</Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     <a href="#" style={{ color: '#555', textDecoration: 'none', fontSize: '0.8rem' }}>Terms and Conditions</a>
                     <a href="#" style={{ color: '#555', textDecoration: 'none', fontSize: '0.8rem' }}>Privacy Policy</a>

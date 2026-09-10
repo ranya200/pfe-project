@@ -43,9 +43,16 @@ export function AuthProvider({ children }) {
             setUser(null)
         }
     }
+    const updateUser = (partialData) => {
+    setUser(prev => {
+        const updated = { ...prev, ...partialData }
+        sessionStorage.setItem('knox_user', JSON.stringify(updated))
+        return updated
+    })
+    }
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
             {children}
         </AuthContext.Provider>
     )

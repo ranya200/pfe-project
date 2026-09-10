@@ -24,6 +24,7 @@ import SecurityIcon from '@mui/icons-material/Security'
 import BusinessIcon from '@mui/icons-material/Business'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import NotificationBell from './NotificationBell'
 
 const drawerWidth = 240
 
@@ -69,12 +70,16 @@ export default function Navbar({ content }) {
             {/* ── AppBar ── */}
             <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                 <Toolbar sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-                        TelNet — Gestion Projets
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                        <img src="/logo192.png" alt="TelTrack" style={{ width: 32, height: 32, borderRadius: 8 }} />
+                        <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
+                            TelTrack
+                        </Typography>
+                    </Box>
 
-                    {/* Avatar + menu déconnexion */}
+                    {/* Notifications + Avatar + menu déconnexion */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <NotificationBell />
                         <Typography sx={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)' }}>
                             {user?.first_name} {user?.last_name}
                         </Typography>

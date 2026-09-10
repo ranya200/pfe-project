@@ -6,6 +6,8 @@ import Typography from '@mui/material/Typography'
 import Avatar from '@mui/material/Avatar'
 import Divider from '@mui/material/Divider'
 import Chip from '@mui/material/Chip'
+import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
 
 const DEPT_LABELS = {
     MEDIA: 'Média & Énergie', SPACE: 'Space', BE: 'BE Electronique',
@@ -26,9 +28,10 @@ const Row = ({ label, children }) => (
 )
 
 const Personal = () => {
-    const { user }                      = useAuth()
+    const { user, updateUser }          = useAuth()
     const [projects, setProjects]       = useState([])
     const [projLoading, setProjLoading] = useState(true)
+    const [savingNotif, setSavingNotif] = useState(false)
 
     useEffect(() => {
         AxiosInstance.get('projects/')
@@ -46,6 +49,18 @@ const Personal = () => {
 
     // Projets actifs : du Kickoff jusqu'à Cloture inclus (l'user en fait partie)
     const activeProjects = projects.filter(p => ACTIVE_PHASES.includes(p.phase))
+
+    const handleToggleEmailNotif = (event) => {
+        const newValue = event.target.checked
+        const previousValue = user.email_notifications_enabled
+        updateUser({ email_notifications_enabled: newValue })   // optimiste
+        setSavingNotif(true)
+
+        AxiosInstance.patch(`me/${user.id}/`, { email_notifications_enabled: newValue })
+            .catch(() => updateUser({ email_notifications_enabled: previousValue }))   // rollback si échec
+            .finally(() => setSavingNotif(false))
+
+    }
 
     return (
         <Box sx={{ p: 4, maxWidth: 900, mx: 'auto' }}>
@@ -91,6 +106,21 @@ const Personal = () => {
 
                     <Row label="Email">
                         <Typography sx={{ fontSize: '0.88rem', color: '#333' }}>{user.email}</Typography>
+                    </Row>
+
+                    <Row label="Notifications par mail">
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={user.email_notifications_enabled ?? true}
+                                    onChange={handleToggleEmailNotif}
+                                    disabled={savingNotif}
+                                    color="primary"
+                                />
+                            }
+                            label={user.email_notifications_enabled ? 'Activées' : 'Désactivées'}
+                            sx={{ ml: 0 }}
+                        />
                     </Row>
 
                     <Row label="Activité / Département">

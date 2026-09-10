@@ -79,6 +79,13 @@ class CustomUser(AbstractUser):
     last_password_change    = models.DateTimeField(null=True, blank=True)
     must_change_password    = models.BooleanField(default=False)
 
+    # ── Notifications par mail ─────────────────────────────────────────────
+    # Permet à chaque utilisateur (y compris ceux qui n'utilisent pas
+    # l'application au quotidien, ex: développeurs) de recevoir par mail
+    # les notifications importantes (nouveau projet, action à faire,
+    # réunion, formation...). Activé par défaut.
+    email_notifications_enabled = models.BooleanField(default=True)
+
     objects = CustomUserManager()
 
 

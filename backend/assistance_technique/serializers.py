@@ -162,11 +162,17 @@ class Step2Serializer(serializers.ModelSerializer):
 # ─── Step 3 sub-serializers ───────────────────────────────────────────────────
 
 class ChargeRessourceSerializer(serializers.ModelSerializer):
-    total = serializers.ReadOnlyField()
+    total          = serializers.ReadOnlyField()
+    total_planifie = serializers.ReadOnlyField()
 
     class Meta:
         model  = ChargeRessource
-        fields = ['id', 'nom_ressource', 'role', 'semaine_1', 'semaine_2', 'semaine_3', 'semaine_4', 'total']
+        fields = [
+            'id', 'nom_ressource', 'role',
+            'semaine_1', 'semaine_2', 'semaine_3', 'semaine_4', 'total',
+            'semaine_1_planifie', 'semaine_2_planifie',
+            'semaine_3_planifie', 'semaine_4_planifie', 'total_planifie',
+        ]
 
 
 class EquipementECMESerializer(serializers.ModelSerializer):
@@ -349,6 +355,9 @@ class Step4Serializer(serializers.ModelSerializer):
             # New evaluation assessment fields
             'bilan_projet', 'bilan_client', 'bilan_activite', 'bilan_etat',
             'bilan_periode', 'plan_action_file_url',
+
+            # Évaluation client — document importé
+            'document_evaluation_client_url',
             
             # Virtual / read-only fields & relations
             'indice_satisfaction_global', 'bilan_competences',

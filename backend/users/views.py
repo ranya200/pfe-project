@@ -179,6 +179,18 @@ class MeViewSet(viewsets.ViewSet):
 
     def list(self, request):
         return Response(UserSerializer(request.user).data)
+
+    def partial_update(self, request, pk=None):
+        """
+        Permet à l'utilisateur connecté de modifier SON PROPRE profil.
+        pk est ignoré : on modifie toujours request.user, jamais un autre compte
+        (la modification d'autrui reste réservée à UsersViewSet, admin only).
+        """
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 # ── Liste des utilisateurs (admin seulement) ─────────────────────────────
 class UsersViewSet(viewsets.ViewSet):

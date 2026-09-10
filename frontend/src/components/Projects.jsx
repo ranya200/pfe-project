@@ -69,6 +69,7 @@ const Projects = () => {
             const q = filters.search.toLowerCase()
             const matchSearch = !q ||
                 p.client?.toLowerCase().includes(q) ||
+                p.nom_projet?.toLowerCase().includes(q) ||
                 p.ref_projet?.toLowerCase().includes(q)
             const matchPhase  = !filters.phase       || p.phase       === filters.phase
             const matchType   = !filters.type_projet || p.type_projet === filters.type_projet
@@ -105,7 +106,7 @@ const Projects = () => {
                 <FilterListIcon sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
 
                 {/* Recherche libre */}
-                <TextField size="small" placeholder="Client ou référence..."
+                <TextField size="small" placeholder="Client, projet ou référence..."
                     value={filters.search} onChange={handleFilter('search')}
                     InputProps={{
                         startAdornment: (
@@ -202,9 +203,9 @@ const Projects = () => {
                                             size="small" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
                                     </Box>
 
-                                    {/* Client */}
+                                    {/* Nom du projet */}
                                     <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, fontSize: '1rem' }}>
-                                        {project.client}
+                                        {project.nom_projet}
                                     </Typography>
 
                                     {/* Type */}

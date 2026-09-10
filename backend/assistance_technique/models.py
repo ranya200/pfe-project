@@ -103,6 +103,7 @@ class PlanCommunication(models.Model):
     frequence      = models.CharField(max_length=100, blank=True)
     responsable    = models.CharField(max_length=200, blank=True)
     participants   = models.CharField(max_length=300, blank=True)
+    element_entree = models.CharField(max_length=300, blank=True)
     element_sortie = models.CharField(max_length=300, blank=True)
     date_prevue    = models.DateField(null=True, blank=True)
 
@@ -247,14 +248,31 @@ class ChargeRessource(models.Model):
     step3         = models.ForeignKey(Step3_Suivi, on_delete=models.CASCADE, related_name='charges_ressources')
     nom_ressource = models.CharField(max_length=200)
     role          = models.CharField(max_length=200, blank=True)
+
+    # ── Effort réel (déjà existant — renseigné au fil du suivi) ────────────
     semaine_1     = models.FloatField(default=0)
     semaine_2     = models.FloatField(default=0)
     semaine_3     = models.FloatField(default=0)
     semaine_4     = models.FloatField(default=0)
 
+    # ── Effort planifié (nouveau — renseigné à la planification initiale) ──
+    # Sert au calcul de l'écart d'effort du dashboard QA :
+    # Variance = Sum(Réel - Planifié) / Total Planifié
+    semaine_1_planifie = models.FloatField(default=0)
+    semaine_2_planifie = models.FloatField(default=0)
+    semaine_3_planifie = models.FloatField(default=0)
+    semaine_4_planifie = models.FloatField(default=0)
+
     @property
     def total(self):
         return self.semaine_1 + self.semaine_2 + self.semaine_3 + self.semaine_4
+
+    @property
+    def total_planifie(self):
+        return (
+            self.semaine_1_planifie + self.semaine_2_planifie
+            + self.semaine_3_planifie + self.semaine_4_planifie
+        )
 
     def __str__(self):
         return f"{self.nom_ressource} — total: {self.total}h"
@@ -333,6 +351,9 @@ class Step4_Evaluation(models.Model):
     bilan_etat                   = models.CharField(max_length=50, blank=True, default='En cours')
     bilan_periode                = models.CharField(max_length=100, blank=True)
     plan_action_file_url         = models.CharField(max_length=500, blank=True)
+
+    # Évaluation client — document d'évaluation client importé (ex: enquête remplie par le client)
+    document_evaluation_client_url = models.CharField(max_length=500, blank=True)
 
     @property
     def indice_satisfaction_global(self):

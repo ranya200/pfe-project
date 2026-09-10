@@ -57,7 +57,26 @@ export default function AssistanceTechniquePage() {
     setView('step')
   }
 
+  // Pure local step navigation — no backend call, no mutation of current_step/status.
+  // Used when browsing a terminée AT, where advance/back must only change which
+  // step is displayed.
+  const goToStepLocal = async (stepNum) => {
+    setActiveStep(stepNum)
+    await loadStep(stepNum)
+  }
+
   const advance = async () => {
+    // BUG FIX: for a terminée AT, "next step" is pure local navigation between
+    // the 4 step views — never call advance_step again on the backend.
+    if (at?.status === 'terminee') {
+      if (activeStep < 4) {
+        await goToStepLocal(activeStep + 1)
+      } else {
+        goToOverview()
+      }
+      return
+    }
+
     try {
       const data = await handleAdvance()
 
@@ -76,11 +95,15 @@ export default function AssistanceTechniquePage() {
   }
 
   const goBack = async () => {
-    // BUG FIX 2: if AT is terminée, going "back" from step 4 should only
-    // navigate to overview — NEVER call go_back_step on the backend,
-    // because that would decrement current_step and reset the project phase.
+    // BUG FIX: for a terminée AT, "previous step" is pure local navigation —
+    // never call go_back_step on the backend, because that would decrement
+    // current_step and reopen the project (phase back to Réalisation).
     if (at?.status === 'terminee') {
-      goToOverview()
+      if (activeStep > 1) {
+        await goToStepLocal(activeStep - 1)
+      } else {
+        goToOverview()
+      }
       return
     }
 
@@ -132,23 +155,27 @@ export default function AssistanceTechniquePage() {
   if (!at) return null
 
   // For the "Retour" button inside a step:
-  // - If AT is terminée → always go to overview (never mutate backend)
+  // - If AT is terminée → goBack() handles pure local step-by-step navigation
+  //   (never mutates the backend)
   // - If viewing a past/future step (not the current one) → just go back to overview
   // - If viewing the current step and it's step 1 → go to overview
   // - Otherwise → go back in AT workflow
   const isViewingNonCurrentStep = activeStep !== null && activeStep !== at.current_step
   const onBackForStep = at?.status === 'terminee'
-    ? goToOverview
+    ? goBack
     : isViewingNonCurrentStep
       ? goToOverview
       : (view === 'step' && at.current_step === 1 ? goToOverview : goBack)
 
-  // When viewing a non-current step (read/edit mode on a completed step),
-  // hide the "advance" button — user cannot advance from a past step
+  // BUG FIX: for a terminée AT, next/previous is always local navigation between
+  // the 4 step views, so the "advance" button must stay active regardless of
+  // isViewingNonCurrentStep (current_step is frozen at 4 once terminée).
+  // For an AT still in progress, hide "advance" when viewing a past/future step —
+  // the user cannot advance from a step that isn't the current one.
   const stepProps = {
     at,
     saving,
-    onAdvance: isViewingNonCurrentStep ? null : advance,
+    onAdvance: (at?.status !== 'terminee' && isViewingNonCurrentStep) ? null : advance,
     onBack: onBackForStep,
     readOnly: false, // allow edits even on completed steps
   }

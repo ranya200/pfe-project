@@ -3,6 +3,9 @@ from datetime import timedelta
 import os
 import dj_database_url
 
+from dotenv import load_dotenv
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Sécurité ───────────────────────────────────────────────────────
@@ -12,12 +15,14 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(','
 
 # ─── Apps ───────────────────────────────────────────────────────────
 INSTALLED_APPS = [
+    'daphne',  
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # ← AJOUTÉ (doit être présent, l'ordre importe peu ici)
     'users.apps.UsersConfig',
     'rest_framework',
     'corsheaders',
@@ -29,6 +34,11 @@ INSTALLED_APPS = [
     'assistance_technique',
     'clients',
     'django_filters',
+    'ai',
+    'django_celery_results',
+    'django_celery_beat',
+    'bilan',
+    'notifications',  # ← AJOUTÉ
 ]
 
 # ─── Middleware ──────────────────────────────────────────────────────
@@ -75,6 +85,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
+ASGI_APPLICATION = 'backend.asgi.application'  # ← AJOUTÉ (requis par Channels)
 
 # ─── Base de données ─────────────────────────────────────────────────
 DATABASES = {
@@ -102,7 +113,13 @@ REST_KNOX = {
 # ─── Fichiers statiques ──────────────────────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# En dev (DEBUG=True) : storage simple, pas besoin de manifest ni de collectstatic
+# En prod (DEBUG=False) : storage compressé + hashé de WhiteNoise (nécessite collectstatic)
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ─── Media ───────────────────────────────────────────────────────────
 MEDIA_URL = '/media/'
@@ -139,5 +156,50 @@ LOGGING = {
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO'},
         'audit': {'handlers': ['console'], 'level': 'INFO'},
+    },
+}
+
+# ─── Celery ──────────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# ─── Emails (notifications par mail) ──────────────────────────────────
+# En dev (DEBUG=True) et si aucun EMAIL_HOST n'est fourni : les mails sont
+# simplement affichés dans la console au lieu d'être réellement envoyés.
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+EMAIL_PORT       = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_HOST_USER  = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS    = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_USE_SSL    = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@example.com')
+
+# Nom affiché dans les mails ("Bonjour, ... — L'équipe <APP_NAME>")
+EMAIL_APP_NAME = os.environ.get('EMAIL_APP_NAME', 'la plateforme de suivi de projets')
+
+# URL du frontend, utilisée pour construire les liens cliquables dans les mails
+# (ex: https://app.mondomaine.com -> https://app.mondomaine.com/projects/12)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+
+# Coupe-circuit global : permet de désactiver tout envoi de mail (ex: tests, staging)
+EMAIL_NOTIFICATIONS_ENABLED = os.environ.get('EMAIL_NOTIFICATIONS_ENABLED', 'True') == 'True'
+
+# ─── Channels (WebSocket) ─────────────────────────────────────────────
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')],
+        },
     },
 }

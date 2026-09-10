@@ -1,0 +1,11 @@
+Bonjour {{ recipient_name }},
+
+[{{ type_label }}] {{ title }}
+
+{{ message }}
+{% if button_url %}
+Voir dans l'application : {{ button_url }}
+{% endif %}
+---
+Vous recevez ce mail car vous êtes concerné(e) par cette notification sur {{ app_name }}.
+Vous pouvez désactiver les notifications par mail depuis votre profil.

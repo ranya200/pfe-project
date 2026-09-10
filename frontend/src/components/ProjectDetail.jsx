@@ -29,6 +29,7 @@ import ArticleIcon from '@mui/icons-material/Article'
 import DeleteIcon from '@mui/icons-material/Delete'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import EngineeringIcon from '@mui/icons-material/Engineering'
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn'
 
 const PHASE_COLORS = {
     IDLE: 'default', Offre: 'warning',
@@ -359,7 +360,7 @@ const ProjectDetail = () => {
                     sx={{ textTransform: 'none', color: '#666' }}>
                     Retour aux projets
                 </Button>
-                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                     {/* Bouton RCT : visible pour admin et membres chef_projet/resp_qualite */}
                     {canAccessRCT(project) && (
                         <Button variant="contained" startIcon={<ArticleIcon />}
@@ -373,6 +374,23 @@ const ProjectDetail = () => {
                             onClick={() => navigate(`/projects/${id}/risks`)}
                             sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563EB', color: '#2563EB' }}>
                             Gestion des risques
+                        </Button>
+                    )}
+                    {/* Bouton Bilan d'actions : mêmes rôles que la gestion des risques */}
+                    {canAccessRisks && (
+                        <Button variant="contained" startIcon={<AssignmentTurnedInIcon />}
+                            onClick={() => navigate(`/projects/${id}/bilan-actions`)}
+                            sx={{ textTransform: 'none', fontWeight: 600, bgcolor: '#4f46e5',
+                                '&:hover': { bgcolor: '#4338ca' } }}>
+                            Bilan d'actions
+                        </Button>
+                    )}
+                    {canAccessRisks && (
+                        <Button variant="contained"
+                            onClick={() => navigate(`/projects/${id}/ai-analysis`)}
+                            sx={{ textTransform: 'none', fontWeight: 600, bgcolor: '#7c3aed',
+                                '&:hover': { bgcolor: '#6d28d9' } }}>
+                            🤖 Analyse IA
                         </Button>
                     )}
                     {/* Bouton AT : visible quand le projet est en phase Kickoff/Réalisation/Clôture */}
@@ -430,7 +448,10 @@ const ProjectDetail = () => {
                         }}>
                             {project.ref_projet}
                         </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.3 }}>
+                            {project.nom_projet}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.85rem', color: '#5b7ca8', mb: 1 }}>
                             {project.client}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
@@ -528,7 +549,7 @@ const ProjectDetail = () => {
                 <DialogContent>
                     <DialogContentText>
                         Cette action est <strong>irréversible</strong>. Le projet{' '}
-                        <strong>« {project.client} »</strong> ainsi que toutes ses données
+                        <strong>« {project.nom_projet} »</strong> ainsi que toutes ses données
                         (RCT, FRO, FRP, fichiers) seront définitivement supprimés.
                     </DialogContentText>
                 </DialogContent>

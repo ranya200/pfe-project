@@ -69,7 +69,7 @@ export default function Step1Lancement({ at, step1Data, saving, onSave, onAdvanc
 
   // Sync from server ONLY on first load, then auto-fill empty fields from project
   useEffect(() => {
-    if (step1Data && !initialized.current) {
+    if (step1Data && !isDirty) {
       initialized.current = true
       const filled = { ...step1Data }
 
@@ -216,7 +216,7 @@ export default function Step1Lancement({ at, step1Data, saving, onSave, onAdvanc
           .catch(() => {})
       }
     }
-  }, [step1Data, at])
+  }, [step1Data, at, isDirty])
 
   const handleChange = useCallback((field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -227,6 +227,13 @@ export default function Step1Lancement({ at, step1Data, saving, onSave, onAdvanc
     await onSave(form)
     setIsDirty(false)
   }, [form, onSave])
+
+  // Save any pending changes before advancing to the next step, so clicking
+  // "Passer à l'étape suivante" never silently discards unsaved edits.
+  const handleAdvanceClick = useCallback(async () => {
+    if (isDirty) await handleSave()
+    onAdvance()
+  }, [isDirty, handleSave, onAdvance])
 
   // Import open risks into risques table + sync ALL risk formations
   const handleImportRisques = useCallback(async () => {
@@ -502,7 +509,7 @@ export default function Step1Lancement({ at, step1Data, saving, onSave, onAdvanc
               </svg> Sauvegarde…</>
             ) : '💾 Sauvegarder'}
           </button>
-          <button type="button" onClick={onAdvance}
+          <button type="button" onClick={handleAdvanceClick}
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow transition-colors">
             Passer à l'étape 2 →
           </button>
@@ -511,4 +518,3 @@ export default function Step1Lancement({ at, step1Data, saving, onSave, onAdvanc
     </div>
   )
 }
-
