@@ -14,7 +14,8 @@ urlpatterns = [
     path('api/', include('clients.urls')),
     path('api/', include('ai.urls')),
     path('api/', include('bilan.urls')),
-    path('api/', include('notifications.urls')),  # ← AJOUTÉ
+    path('api/', include('notifications.urls')),  
     path('api/auth/', include('knox.urls')),
+    path("api/chatbot/", include("chatbot.urls")),
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
 ]

@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django_celery_results',
     'django_celery_beat',
     'bilan',
-    'notifications',  # ← AJOUTÉ
+    'notifications',
+    'chatbot',  
 ]
 
 # ─── Middleware ──────────────────────────────────────────────────────
@@ -203,3 +204,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
